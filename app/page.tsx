@@ -1,5 +1,5 @@
 
-import IntroSection from "@/components/component-example";
+import IntroSection from "@/components/introsection";
 export default function Page() {
 return <IntroSection />;
 }
