@@ -18,12 +18,14 @@ export default function IntroSection() {
             <Input type="file" className="w-full mb-2" />
             <Button className="w-full">Upload</Button>
           </div>
+
           <div className="flex-1 flex flex-col border border-gray-300 rounded-lg p-2 overflow-auto">
             <p className="mb-2">O pegue aquí (Ctrl+V)</p>
             <Textarea
               placeholder="Pegue su texto aquí..."
-              className="flex-1 resize-none"
+              className="flex-1 resize-none mb-2"
             />
+            <Button className="self-end mt-auto">Procesar</Button>
           </div>
         </CardContent>
       </Card>
