@@ -9,13 +9,16 @@ import { Button } from "@/components/ui/button";
 
 export default function IntroSection() {
   const router = useRouter();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(null);
 
   const handleUpload = () => {
-    if (!selectedFile) return alert("Por favor, seleccione un PDF.");
-    const fileUrl = URL.createObjectURL(selectedFile);
-    router.push(`/dashboard?pdf=${encodeURIComponent(fileUrl)}`);
+    if (!file) return;
+
+    const fileURL = URL.createObjectURL(file);
+
+    router.push(`/viewer?file=${encodeURIComponent(fileURL)}`);
   };
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
@@ -30,11 +33,8 @@ export default function IntroSection() {
               type="file"
               accept="application/pdf"
               className="w-full mb-2"
-              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              onChange={handleUpload}
             />
-            <Button className="w-full" onClick={handleUpload}>
-              Upload
-            </Button>
           </div>
           <div className="flex-1 flex flex-col border border-gray-300 rounded-lg p-2 overflow-auto">
             <p className="mb-2">O pegue aquí (Ctrl+V)</p>
