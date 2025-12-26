@@ -38,8 +38,11 @@ export default function ViewerPage() {
   if (!fileURL) return <p>No file provided.</p>;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+    <div className='flex align-center gap-1'>
       <PDFViewer file={fileURL} />
+      <div className=''>
+          hola
+      </div>
     </div>
   );
 }
