@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, getTimeZone } from 'next-intl/server';
+import { getMessages } from 'next-intl/server';
 import { locales, type Locale } from '@/i18n';
 import { LanguageProvider } from '@/context/LanguageContext';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
@@ -25,7 +25,7 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  const messages = await getMessages({ locale });
+  const messages = await getMessages();
 
   return (
     <NextIntlClientProvider messages={messages} locale={locale}>
