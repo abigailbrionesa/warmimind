@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 
 const translateClient = new TranslationServiceClient();
 
-async function translateToQuechua(text: string) {
+async function translateText(text: string, targetLanguage: string) {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
   if (!projectId) throw new Error('GOOGLE_CLOUD_PROJECT_ID not set');
 
@@ -15,7 +15,7 @@ async function translateToQuechua(text: string) {
     contents: [text],
     mimeType: 'text/plain',
     sourceLanguageCode: 'en',
-    targetLanguageCode: 'qu',
+    targetLanguageCode: targetLanguage,
   };
 
   const [response] = await translateClient.translateText(request);
@@ -24,11 +24,12 @@ async function translateToQuechua(text: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { text } = await req.json();
+    const { text, targetLanguage = 'qu' } = await req.json();
     if (!text) return NextResponse.json({ error: 'No text provided' }, { status: 400 });
 
     const GEMINI_API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!GEMINI_API_KEY) return NextResponse.json({ error: 'GEMINI_API_KEY not configured' }, { status: 500 });
+
     const truncatedText = text.slice(0, 30000);
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -47,9 +48,14 @@ export async function POST(req: NextRequest) {
 
     const summary = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No summary generated';
 
-    const summaryQuechua = await translateToQuechua(summary);
+    let translatedSummary = null;
+    try {
+      translatedSummary = await translateText(summary, targetLanguage);
+    } catch (translateErr: any) {
+      console.warn('Translation failed:', translateErr.message);
+    }
 
-    return NextResponse.json({ summary, summaryQuechua });
+    return NextResponse.json({ summary, translatedSummary });
   } catch (err: any) {
     console.error('Error in summary + translation:', err);
     return NextResponse.json({ error: err.message || String(err) }, { status: 500 });
