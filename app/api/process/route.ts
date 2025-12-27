@@ -1,42 +1,94 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { google } from "@ai-sdk/google";
+import { generateText } from "ai";
 import { detectLanguage, translate } from "@/lib/translate";
+import { createSession } from "@/lib/session-store";
+
+export const runtime = "nodejs";
 
 const model = google("gemini-2.5-flash");
 
-const sessions = new Map();
-
 export async function POST(req: NextRequest) {
-  const { text } = await req.json();
-  const sessionId = crypto.randomUUID();
+  try {
+    const { text } = await req.json();
+    if (!text) {
+      return NextResponse.json(
+        { error: "No text provided" },
+        { status: 400 }
+      );
+    }
 
-  const lang = await detectLanguage(text);
-  const normalized =
-    lang !== "es" ? await translate(text, "es") : text;
+    const detectedLang = await detectLanguage(text);
 
-  const prompt = `
-Summarize this STEM content for students.
-Generate 5 open-ended questions.
-Adapt examples to Andean / Quechua culture.
+    const normalizedText =
+      detectedLang !== "es"
+        ? await translate(text, "es", detectedLang)
+        : text;
+
+    const prompt = `
+You are an educational AI helping young girls in Peru learn STEM.
+
+TASKS:
+1. Summarize the content clearly and simply.
+2. Adapt explanations using Andean / Quechua cultural references
+   (mountains, farming, weaving, community life).
+3. Generate exactly 5 open-ended questions.
+4. Avoid technical jargon unless explained.
+
+Return valid JSON ONLY (no markdown formatting):
+{
+  "summary": "string",
+  "questions": ["string", "string", "string", "string", "string"]
+}
 `;
 
-  const result = await model.generateText({
-    prompt: `${prompt}\n\n${normalized}`,
-  });
+    const result = await generateText({
+      model,
+      prompt: `${prompt}\n\nCONTENT:\n${normalizedText}`,
+      temperature: 0.4,
+    });
 
-  const summaryQu = await translate(result.summary, "qu");
-  const questionsQu = await Promise.all(
-    result.questions.map(q => translate(q, "qu"))
-  );
+    let jsonText = result.text.trim();
+    
+    if (jsonText.startsWith("```json")) {
+      jsonText = jsonText.replace(/```json\n?/g, "").replace(/```$/g, "");
+    } else if (jsonText.startsWith("```")) {
+      jsonText = jsonText.replace(/```\n?/g, "").replace(/```$/g, "");
+    }
+    
+    const parsed = JSON.parse(jsonText.trim());
 
-  sessions.set(sessionId, {
-    text: normalized,
-    chunks: normalized.match(/.{1,800}/g),
-  });
+    const summaryQu = await translate(parsed.summary, "qu", "es");
 
-  return Response.json({
-    sessionId,
-    summaryQu,
-    questionsQu,
-  });
+    const questionsQu = await Promise.all(
+      parsed.questions.map((q: string) =>
+        translate(q, "qu", "es")
+      )
+    );
+
+    const sessionId = crypto.randomUUID();
+    createSession(sessionId, {
+  chunks: normalizedText.match(/.{1,800}/g) || [],
+});
+
+console.log("SESSION CREATED:", sessionId);
+
+    return NextResponse.json({
+      sessionId,
+      summaryQu,
+      questionsQu,
+    });
+  } catch (error: any) {
+    console.error("Process error:", error);
+    console.error("Error details:", error.message);
+    console.error("Stack trace:", error.stack);
+    return NextResponse.json(
+      { 
+        error: "Failed to process PDF",
+        details: error.message,
+        type: error.constructor.name
+      },
+      { status: 500 }
+    );
+  }
 }
