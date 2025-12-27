@@ -1,0 +1,39 @@
+{
+  "common": {
+    "appTitle": "Warmi Mind",
+    "appDescription": "IA-llaq documentu analisadoraq multilengua supportwan"
+  },
+  "navbar": {
+    "home": "Uchuy",
+    "about": "Imaynapitac",
+    "contact": "Rimarinakuy"
+  },
+  "pdfViewer": {
+    "title": "PDF Rikuchinakuy & Analisador",
+    "uploadPrompt": "PDF archivo kargarikuy allichaw kaymanta",
+    "uploadButton": "PDF kargarikuy",
+    "selectFile": "Archivo akllanakuy...",
+    "processingTitle": "Llamkachkachiq...",
+    "processingMessage": "Simita apachkachiq, sumariota generachkachiq. Sumayta pantachikuy.",
+    "errorTitle": "Pantalla",
+    "errorMessage": "Pantalla PDF llamkachkaqta. Yapamanta entsayachikuy.",
+    "retryButton": "Yapamanta entsayachikuy",
+    "summaryTitle": "IA Sumaria",
+    "noSummary": "Mana sumaria kanchu",
+    "fullTextTitle": "Llapa Simi",
+    "noText": "Mana simi apachkakuchu"
+  },
+  "languageSwitcher": {
+    "label": "Lengua",
+    "selectLanguage": "Lengua akllanakuy"
+  },
+  "buttons": {
+    "submit": "Willakuy",
+    "cancel": "Llakikunayachikuy",
+    "close": "Sarinchacu",
+    "clear": "Pichay",
+    "delete": "Qachay",
+    "edit": "Allinchaykuy",
+    "save": "Wañuchikuy"
+  }
+}
