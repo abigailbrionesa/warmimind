@@ -29,6 +29,9 @@ importers:
       '@pdf-viewer/react':
         specifier: ^1.15.0
         version: 1.15.0(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(pdfjs-dist@3.11.174)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      ai:
+        specifier: ^6.0.3
+        version: 6.0.3(zod@4.2.1)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
