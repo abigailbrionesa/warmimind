@@ -7,7 +7,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import ReactMarkdown from 'react-markdown';
 
-const PDFViewer = dynamic(
+export const PDFViewer = dynamic(
   async () => {
     const { Document, Page, pdfjs } = await import('react-pdf');
     pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
