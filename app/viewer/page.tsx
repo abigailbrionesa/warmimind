@@ -18,7 +18,13 @@ const PDFViewer = dynamic(
       return (
         <Document file={file} onLoadSuccess={(pdf) => setNumPages(pdf.numPages)}>
           {Array.from({ length: numPages }, (_, i) => (
-            <Page key={i + 1} pageNumber={i + 1} width={600} renderTextLayer renderAnnotationLayer />
+            <Page
+              key={i + 1}
+              pageNumber={i + 1}
+              width={600}
+              renderTextLayer
+              renderAnnotationLayer
+            />
           ))}
         </Document>
       );
@@ -32,7 +38,7 @@ export default function ViewerPage() {
   const [fileURL, setFileURL] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryQuechua, setSummaryQuechua] = useState<string | null>(null);
-  const [fullText, setFullText] = useState<string>('');
+  const [fullText, setFullText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,77 +56,99 @@ export default function ViewerPage() {
       setFullText(text);
 
       setSummary('Generating AI summary...');
-      const geminiRes = await fetch('/api/gemini-summary', {
+      const res = await fetch('/api/gemini-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
       });
 
-      const geminiData = await geminiRes.json();
-      if (geminiRes.ok) {
-        setSummary(geminiData.summary);
-        setSummaryQuechua(geminiData.summaryQuechua);
-      } else {
-        setSummary(`Extracted ${text.split(/\s+/).length} words. (AI summary unavailable: ${geminiData.error})`);
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setSummary(data.summary);
+      setSummaryQuechua(data.summaryQuechua);
     } catch (err: any) {
-      console.error('PDF extraction error:', err);
       setSummary(`Error: ${err.message}`);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  useEffect(() => () => { if (fileURL) URL.revokeObjectURL(fileURL); }, [fileURL]);
+  useEffect(() => {
+    return () => {
+      if (fileURL) URL.revokeObjectURL(fileURL);
+    };
+  }, [fileURL]);
 
   return (
-    <div className="flex gap-4 p-4 h-screen bg-gray-50">
-      <div className="flex-1 overflow-auto border rounded-lg p-4 bg-white shadow">
+    <div className="flex h-screen gap-4 p-4 bg-background text-foreground">
+      {/* PDF PANEL */}
+      <div className="flex-1 overflow-auto rounded-lg border bg-card p-4 shadow-sm">
         <input
           type="file"
           accept="application/pdf"
           onChange={handleUpload}
-          className="mb-4 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+          className="mb-4 block w-full cursor-pointer text-sm text-muted-foreground
+            file:mr-4 file:rounded file:border-0 file:bg-secondary
+            file:px-4 file:py-2 file:text-sm file:font-medium
+            file:text-secondary-foreground hover:file:bg-accent"
         />
-        {fileURL ? <PDFViewer file={fileURL} /> : (
-          <div className="flex items-center justify-center h-96 text-gray-400">Upload a PDF to view</div>
+
+        {fileURL ? (
+          <PDFViewer file={fileURL} />
+        ) : (
+          <div className="flex h-96 items-center justify-center text-muted-foreground">
+            Upload a PDF to view
+          </div>
         )}
       </div>
 
-      <div className="w-96 border rounded-lg p-4 overflow-auto bg-white shadow">
-        <h2 className="font-bold text-lg mb-3">AI Summary</h2>
+      {/* SUMMARY PANEL */}
+      <div className="w-96 overflow-auto rounded-lg border bg-card p-4 shadow-sm">
+        <h2 className="mb-3 text-lg font-semibold">AI Summary</h2>
+
         {isProcessing && (
-          <div className="flex items-center gap-2 text-gray-500">
-            <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <p>Processing PDF...</p>
           </div>
         )}
+
         {!isProcessing && summary && (
-          <div>
-            <h3>English Summary</h3>
-            <div className="prose max-w-none"><ReactMarkdown>{summary}</ReactMarkdown></div>
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-medium text-primary">English Summary</h3>
+              <div className="prose max-w-none dark:prose-invert">
+                <ReactMarkdown>{summary}</ReactMarkdown>
+              </div>
+            </div>
 
             {summaryQuechua && (
-              <>
-                <h3 className="mt-4">Quechua Summary</h3>
-                <div className="prose max-w-none"><ReactMarkdown>{summaryQuechua}</ReactMarkdown></div>
-              </>
+              <div>
+                <h3 className="font-medium text-primary">Quechua Summary</h3>
+                <div className="prose max-w-none dark:prose-invert">
+                  <ReactMarkdown>{summaryQuechua}</ReactMarkdown>
+                </div>
+              </div>
             )}
 
             {fullText && (
-              <details className="mt-4">
-                <summary className="cursor-pointer text-sm font-semibold text-blue-600 hover:text-blue-700">
+              <details>
+                <summary className="cursor-pointer text-sm font-medium text-primary hover:underline">
                   View Full Text ({fullText.split(/\s+/).length} words)
                 </summary>
-                <div className="mt-2 p-3 bg-gray-50 rounded text-xs max-h-96 overflow-auto">
-                  <pre className="whitespace-pre-wrap font-mono">{fullText}</pre>
-                </div>
+                <pre className="mt-2 max-h-96 overflow-auto rounded bg-muted p-3 text-xs font-mono">
+                  {fullText}
+                </pre>
               </details>
             )}
           </div>
         )}
+
         {!isProcessing && !summary && (
-          <p className="text-gray-400">Upload a PDF to see the AI-generated summary...</p>
+          <p className="text-muted-foreground">
+            Upload a PDF to see the AI-generated summary.
+          </p>
         )}
       </div>
     </div>
