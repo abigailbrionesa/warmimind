@@ -1,10 +1,6 @@
 'use client';
 
-import IntroSection from '@/components/introsection';
-
+import ViewerPage from "./viewer/page";
 export default function Home() {
-
-  return (
-    <IntroSection/>
-  );
+  return <ViewerPage />;
 }
