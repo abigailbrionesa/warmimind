@@ -1,163 +1,335 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import pdfToText from 'react-pdftotext';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
-import ReactMarkdown from 'react-markdown';
-import PDFViewer from '../components/PDFViewer';
+import { useState, useRef } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import { SUPPORTED_LANGUAGES } from '../config/language';
+import { useTranslations } from 'next-intl';
+import ReactMarkdown from 'react-markdown';
+import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '../config/language';
+
+
+interface PDFContent {
+  originalText: string;
+  summary: string;
+  translatedSummary?: string;
+  translatedText?: string;
+}
 
 export default function ViewerPage() {
-  const { currentLanguage, setCurrentLanguage } = useLanguage();
-  const [file, setFile] = useState<File | null>(null);
-  const [fileURL, setFileURL] = useState<string | null>(null);
-  const [summary, setSummary] = useState<string | null>(null);
-  const [translatedSummary, setTranslatedSummary] = useState<string | null>(null);
-  const [fullText, setFullText] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { currentLanguage } = useLanguage();
+  const t = useTranslations();
+
+  const [pdfContent, setPdfContent] = useState<PDFContent | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = e.target.files?.[0];
-    if (!uploadedFile) return;
 
-    setFile(uploadedFile);
-    setFileURL(URL.createObjectURL(uploadedFile));
-    setSummary('Extracting text from PDF...');
-    setTranslatedSummary(null);
-    setFullText('');
+  async function extractTextFromPDF(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfData = new Uint8Array(arrayBuffer);
+
+    const pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      fullText += pageText + '\n';
+    }
+
+    return fullText;
+  }
+
+  
+  async function translateContent(text: string, targetLanguage: string): Promise<string> {
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        targetLanguage,
+        sourceLanguage: DEFAULT_LANGUAGE,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Translation failed');
+    }
+
+    const data = await response.json();
+    return data.translatedText;
+  }
+
+  async function generateAISummary(
+    text: string,
+    targetLanguage: string = DEFAULT_LANGUAGE
+  ): Promise<{ summary: string; translatedSummary?: string }> {
+    const response = await fetch('/api/gemini-summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        targetLanguage,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Summary generation failed');
+    }
+
+    return response.json();
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (!file.type.includes('pdf')) {
+      setError(t('pdfViewer.errorMessage'));
+      return;
+    }
+
+    setIsLoading(true);
     setError(null);
-    setIsProcessing(true);
 
     try {
-      const text = await pdfToText(uploadedFile);
-      setFullText(text);
+      console.log('Extracting text from PDF...');
+      const extractedText = await extractTextFromPDF(file);
 
-      setSummary('Generating AI summary...');
-      const geminiRes = await fetch('/api/gemini-summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, targetLanguage: currentLanguage })
+      if (!extractedText.trim()) {
+        throw new Error('No text could be extracted from the PDF');
+      }
+
+      console.log('Generating AI summary...');
+      const { summary, translatedSummary } = await generateAISummary(
+        extractedText,
+        currentLanguage
+      );
+
+      let translatedText: string | undefined;
+      if (currentLanguage !== DEFAULT_LANGUAGE) {
+        console.log(`Translating content to ${currentLanguage}...`);
+        translatedText = await translateContent(extractedText, currentLanguage);
+      }
+
+      setPdfContent({
+        originalText: extractedText,
+        summary,
+        translatedSummary: translatedSummary || undefined,
+        translatedText,
       });
 
-      const geminiData = await geminiRes.json();
-      if (geminiRes.ok) {
-        setSummary(geminiData.summary);
-        setTranslatedSummary(geminiData.translatedSummary);
-      } else {
-        setError(`AI summary unavailable: ${geminiData.error}`);
-        setSummary(`Extracted ${text.split(/\s+/).length} words.`);
-      }
-    } catch (err: any) {
-      console.error('PDF extraction error:', err);
-      setError(`Error: ${err.message}`);
-      setSummary(null);
+      console.log('PDF processing completed successfully');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMsg);
+      console.error('PDF processing error:', err);
+      setPdfContent(null);
     } finally {
-      setIsProcessing(false);
+      setIsLoading(false);
     }
   };
 
-  const handleLanguageChange = async (newLang: string) => {
-    setCurrentLanguage(newLang);
-    if (summary && fullText) {
-      setIsProcessing(true);
-      try {
-        const geminiRes = await fetch('/api/gemini-summary', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: fullText, targetLanguage: newLang })
-        });
+  const handleLanguageChange = async () => {
+    if (!pdfContent) return;
 
-        const geminiData = await geminiRes.json();
-        if (geminiRes.ok) {
-          setTranslatedSummary(geminiData.translatedSummary);
-        } else {
-          setError(`Translation failed: ${geminiData.error}`);
-        }
-      } catch (err: any) {
-        setError(`Translation error: ${err.message}`);
-      } finally {
-        setIsProcessing(false);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (currentLanguage !== DEFAULT_LANGUAGE) {
+        console.log(`Re-translating to ${currentLanguage}...`);
+        const translatedSummary = await translateContent(pdfContent.summary, currentLanguage);
+        const translatedText = await translateContent(pdfContent.originalText, currentLanguage);
+
+        setPdfContent((prev) =>
+          prev
+            ? {
+                ...prev,
+                translatedSummary,
+                translatedText,
+              }
+            : null
+        );
+      } else {
+        setPdfContent((prev) =>
+          prev
+            ? {
+                ...prev,
+                translatedSummary: undefined,
+                translatedText: undefined,
+              }
+            : null
+        );
       }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Translation failed';
+      setError(errorMsg);
+      console.error('Language change translation error:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  useEffect(() => () => { if (fileURL) URL.revokeObjectURL(fileURL); }, [fileURL]);
+  const [lastLanguage, setLastLanguage] = useState(currentLanguage);
+  if (lastLanguage !== currentLanguage) {
+    setLastLanguage(currentLanguage);
+    handleLanguageChange();
+  }
+
+
+  const handleClear = () => {
+    setPdfContent(null);
+    setError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const displayText =
+    currentLanguage !== DEFAULT_LANGUAGE && pdfContent?.translatedText
+      ? pdfContent.translatedText
+      : pdfContent?.originalText;
+
+  const displaySummary =
+    currentLanguage !== DEFAULT_LANGUAGE && pdfContent?.translatedSummary
+      ? pdfContent.translatedSummary
+      : pdfContent?.summary;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 p-4 h-screen bg-gray-50">
-      <div className="flex-1 overflow-auto border rounded-lg p-4 bg-white shadow">
-        <input
-          type="file"
-          accept="application/pdf"
-          onChange={handleUpload}
-          className="mb-4 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-        />
-        {fileURL ? <PDFViewer file={fileURL} /> : (
-          <div className="flex items-center justify-center h-96 text-gray-400">Upload a PDF to view</div>
-        )}
-      </div>
-
-      <div className="w-full lg:w-96 border rounded-lg p-4 overflow-auto bg-white shadow">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="font-bold text-lg">AI Summary</h2>
-          <select
-            value={currentLanguage}
-            onChange={(e) => handleLanguageChange(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
-          >
-            {SUPPORTED_LANGUAGES.map((lang) => (
-              <option key={lang.code} value={lang.code}>
-                {lang.name}
-              </option>
-            ))}
-          </select>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            {t('pdfViewer.title')}
+          </h1>
+          <p className="text-gray-600">
+            {t('pdfViewer.uploadPrompt')}
+          </p>
         </div>
 
-        {isProcessing && (
-          <div className="flex items-center gap-2 text-gray-500 mb-4">
-            <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-            <p>Processing...</p>
-          </div>
-        )}
-
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
+          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            <h3 className="font-bold mb-2">{t('pdfViewer.errorTitle')}</h3>
+            <p>{error}</p>
           </div>
         )}
 
-        {!isProcessing && summary && (
-          <div>
-            <h3 className="font-semibold">English Summary</h3>
-            <div className="prose max-w-none mb-4"><ReactMarkdown>{summary}</ReactMarkdown></div>
-
-            {translatedSummary && (
-              <>
-                <h3 className="font-semibold mt-4">
-                  {SUPPORTED_LANGUAGES.find(l => l.code === currentLanguage)?.name} Summary
-                </h3>
-                <div className="prose max-w-none"><ReactMarkdown>{translatedSummary}</ReactMarkdown></div>
-              </>
-            )}
-
-            {fullText && (
-              <details className="mt-4">
-                <summary className="cursor-pointer text-sm font-semibold text-blue-600 hover:text-blue-700">
-                  View Full Text ({fullText.split(/\s+/).length} words)
-                </summary>
-                <div className="mt-2 p-3 bg-gray-50 rounded text-xs max-h-96 overflow-auto">
-                  <pre className="whitespace-pre-wrap font-mono">{fullText}</pre>
+        {!pdfContent && (
+          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <div className="flex flex-col items-center gap-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileChange}
+                disabled={isLoading}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              {isLoading && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <svg
+                    className="animate-spin h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  <span>{t('pdfViewer.processingMessage')}</span>
                 </div>
-              </details>
-            )}
+              )}
+            </div>
           </div>
         )}
 
-        {!isProcessing && !summary && !error && (
-          <p className="text-gray-400">Upload a PDF to see the AI-generated summary...</p>
+        {pdfContent && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                {t('pdfViewer.summaryTitle')}
+              </h2>
+              <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-lg">
+                {displaySummary ? (
+                  <ReactMarkdown>{displaySummary}</ReactMarkdown>
+                ) : (
+                  <p className="text-gray-500">{t('pdfViewer.noSummary')}</p>
+                )}
+              </div>
+              {isLoading && (
+                <div className="mt-4 flex items-center gap-2 text-gray-600">
+                  <svg
+                    className="animate-spin h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  <span>{t('pdfViewer.processingMessage')}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                {t('pdfViewer.fullTextTitle')}
+              </h2>
+              <div className="max-h-96 overflow-y-auto bg-gray-50 p-4 rounded-lg text-sm text-gray-700 whitespace-pre-wrap">
+                {displayText || (
+                  <p className="text-gray-500">{t('pdfViewer.noText')}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={handleClear}
+                disabled={isLoading}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {t('buttons.clear')}
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {t('pdfViewer.uploadButton')}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
