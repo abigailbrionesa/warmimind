@@ -1,6 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { DEFAULT_LANGUAGE } from '@/config/language';
 
-import ViewerPage from "./viewer/page";
-export default function Home() {
-  return <ViewerPage />;
+export default function RootPage() {
+  redirect(`/${DEFAULT_LANGUAGE}`);
 }
