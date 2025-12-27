@@ -2,5 +2,5 @@
 
 import ViewerPage from "./viewer/page";
 export default function Home() {
-  return <ViewerPage />;
+  return <div></div>;
 }
