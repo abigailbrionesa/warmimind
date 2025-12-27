@@ -1,72 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { TranslationServiceClient } from '@google-cloud/translate';
 
 export const runtime = 'nodejs';
 
-function chunkText(text: string, chunkSize = 30000): string[] {
-  const chunks = [];
-  let start = 0;
-  while (start < text.length) {
-    chunks.push(text.slice(start, start + chunkSize));
-    start += chunkSize;
-  }
-  return chunks;
+const translateClient = new TranslationServiceClient();
+
+async function translateToQuechua(text: string) {
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+  if (!projectId) throw new Error('GOOGLE_CLOUD_PROJECT_ID not set');
+
+  const location = 'global';
+  const request = {
+    parent: `projects/${projectId}/locations/${location}`,
+    contents: [text],
+    mimeType: 'text/plain',
+    sourceLanguageCode: 'en',
+    targetLanguageCode: 'qu',
+  };
+
+  const [response] = await translateClient.translateText(request);
+  return response.translations?.[0]?.translatedText || '';
 }
 
 export async function POST(req: NextRequest) {
   try {
     const { text } = await req.json();
-
-    if (!text) {
-      return NextResponse.json({ error: 'No text provided' }, { status: 400 });
-    }
+    if (!text) return NextResponse.json({ error: 'No text provided' }, { status: 400 });
 
     const GEMINI_API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!GEMINI_API_KEY) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY not configured in .env.local' }, { status: 500 });
-    }
-
-    const chunks = chunkText(text, 30000);
-    let finalSummary = '';
-
-    for (const chunk of chunks) {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `Please provide a comprehensive summary of the following document. Include main topics, key points, and important conclusions:\n\n${chunk}`
-                  }
-                ]
-              }
-            ],
-            generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
-          })
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error('Gemini API chunk error:', data);
-        finalSummary += `\n[Chunk summary unavailable: ${data.error?.message || 'unknown error'}]`;
-        continue;
+    if (!GEMINI_API_KEY) return NextResponse.json({ error: 'GEMINI_API_KEY not configured' }, { status: 500 });
+    const truncatedText = text.slice(0, 30000);
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `Please summarize this document in Markdown format:\n\n${truncatedText}` }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
+        }),
       }
-
-      const chunkSummary = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      finalSummary += chunkSummary + '\n';
-    }
-
-    return NextResponse.json({ summary: finalSummary.trim() });
-  } catch (err: any) {
-    console.error('Gemini API error:', err);
-    return NextResponse.json(
-      { error: 'Failed to generate summary', details: err.message || String(err) },
-      { status: 500 }
     );
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'Gemini API error');
+
+    const summary = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No summary generated';
+
+    const summaryQuechua = await translateToQuechua(summary);
+
+    return NextResponse.json({ summary, summaryQuechua });
+  } catch (err: any) {
+    console.error('Error in summary + translation:', err);
+    return NextResponse.json({ error: err.message || String(err) }, { status: 500 });
   }
 }
