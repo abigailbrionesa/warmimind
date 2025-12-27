@@ -1,0 +1,39 @@
+{
+  "common": {
+    "appTitle": "Warmi Mind",
+    "appDescription": "AI-powered document analysis with multilingual support"
+  },
+  "navbar": {
+    "home": "Home",
+    "about": "About",
+    "contact": "Contact"
+  },
+  "pdfViewer": {
+    "title": "PDF Viewer & Analyzer",
+    "uploadPrompt": "Upload a PDF file to get started",
+    "uploadButton": "Upload PDF",
+    "selectFile": "Select a file...",
+    "processingTitle": "Processing...",
+    "processingMessage": "Extracting text and generating summary. Please wait.",
+    "errorTitle": "Error",
+    "errorMessage": "An error occurred while processing the PDF. Please try again.",
+    "retryButton": "Try Again",
+    "summaryTitle": "AI Summary",
+    "noSummary": "No summary available",
+    "fullTextTitle": "Full Text",
+    "noText": "No text extracted"
+  },
+  "languageSwitcher": {
+    "label": "Language",
+    "selectLanguage": "Select Language"
+  },
+  "buttons": {
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "close": "Close",
+    "clear": "Clear",
+    "delete": "Delete",
+    "edit": "Edit",
+    "save": "Save"
+  }
+}
