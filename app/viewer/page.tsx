@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -79,8 +80,14 @@ export default function ViewerPage() {
       if (fileURL) URL.revokeObjectURL(fileURL);
     };
   }, [fileURL]);
+=======
+import ViewerPage from '../../components/ViewerPage';
+import { LanguageProvider } from '../../context/LanguageContext';
+>>>>>>> 48486ed1e2f6f2fd698b85716b029297865842a0
 
+export default function Page() {
   return (
+<<<<<<< HEAD
     <div className="flex h-screen gap-4 p-4 bg-background text-foreground">
       {/* PDF PANEL */}
       <div className="flex-1 overflow-auto rounded-lg border bg-card p-4 shadow-sm">
@@ -152,5 +159,10 @@ export default function ViewerPage() {
         )}
       </div>
     </div>
+=======
+    <LanguageProvider>
+      <ViewerPage />
+    </LanguageProvider>
+>>>>>>> 48486ed1e2f6f2fd698b85716b029297865842a0
   );
 }
