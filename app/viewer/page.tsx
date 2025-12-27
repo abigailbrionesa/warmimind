@@ -16,18 +16,9 @@ const PDFViewer = dynamic(
       const [numPages, setNumPages] = useState(0);
 
       return (
-        <Document
-          file={file}
-          onLoadSuccess={(pdf) => setNumPages(pdf.numPages)}
-        >
+        <Document file={file} onLoadSuccess={(pdf) => setNumPages(pdf.numPages)}>
           {Array.from({ length: numPages }, (_, i) => (
-            <Page
-              key={i + 1}
-              pageNumber={i + 1}
-              width={600}
-              renderTextLayer
-              renderAnnotationLayer
-            />
+            <Page key={i + 1} pageNumber={i + 1} width={600} renderTextLayer renderAnnotationLayer />
           ))}
         </Document>
       );
@@ -40,6 +31,7 @@ export default function ViewerPage() {
   const [file, setFile] = useState<File | null>(null);
   const [fileURL, setFileURL] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
+  const [summaryQuechua, setSummaryQuechua] = useState<string | null>(null);
   const [fullText, setFullText] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -50,6 +42,7 @@ export default function ViewerPage() {
     setFile(uploadedFile);
     setFileURL(URL.createObjectURL(uploadedFile));
     setSummary('Extracting text from PDF...');
+    setSummaryQuechua(null);
     setIsProcessing(true);
 
     try {
@@ -66,6 +59,7 @@ export default function ViewerPage() {
       const geminiData = await geminiRes.json();
       if (geminiRes.ok) {
         setSummary(geminiData.summary);
+        setSummaryQuechua(geminiData.summaryQuechua);
       } else {
         setSummary(`Extracted ${text.split(/\s+/).length} words. (AI summary unavailable: ${geminiData.error})`);
       }
@@ -77,11 +71,7 @@ export default function ViewerPage() {
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (fileURL) URL.revokeObjectURL(fileURL);
-    };
-  }, [fileURL]);
+  useEffect(() => () => { if (fileURL) URL.revokeObjectURL(fileURL); }, [fileURL]);
 
   return (
     <div className="flex gap-4 p-4 h-screen bg-gray-50">
@@ -93,11 +83,10 @@ export default function ViewerPage() {
           className="mb-4 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
         />
         {fileURL ? <PDFViewer file={fileURL} /> : (
-          <div className="flex items-center justify-center h-96 text-gray-400">
-            Upload a PDF to view
-          </div>
+          <div className="flex items-center justify-center h-96 text-gray-400">Upload a PDF to view</div>
         )}
       </div>
+
       <div className="w-96 border rounded-lg p-4 overflow-auto bg-white shadow">
         <h2 className="font-bold text-lg mb-3">AI Summary</h2>
         {isProcessing && (
@@ -108,9 +97,17 @@ export default function ViewerPage() {
         )}
         {!isProcessing && summary && (
           <div>
-            <div className="prose max-w-none">
-              <ReactMarkdown>{summary}</ReactMarkdown>
-            </div>            {fullText && (
+            <h3>English Summary</h3>
+            <div className="prose max-w-none"><ReactMarkdown>{summary}</ReactMarkdown></div>
+
+            {summaryQuechua && (
+              <>
+                <h3 className="mt-4">Quechua Summary</h3>
+                <div className="prose max-w-none"><ReactMarkdown>{summaryQuechua}</ReactMarkdown></div>
+              </>
+            )}
+
+            {fullText && (
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-semibold text-blue-600 hover:text-blue-700">
                   View Full Text ({fullText.split(/\s+/).length} words)
@@ -118,7 +115,6 @@ export default function ViewerPage() {
                 <div className="mt-2 p-3 bg-gray-50 rounded text-xs max-h-96 overflow-auto">
                   <pre className="whitespace-pre-wrap font-mono">{fullText}</pre>
                 </div>
-
               </details>
             )}
           </div>
