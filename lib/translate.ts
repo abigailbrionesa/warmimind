@@ -19,13 +19,17 @@ export async function detectLanguage(text: string): Promise<string> {
 
 export async function translate(
   text: string,
-  targetLanguage: string
+  targetLanguage: string,
+  sourceLanguage?: string
 ): Promise<string> {
   const [response] = await client.translateText({
     parent: `projects/${PROJECT_ID}/locations/${LOCATION}`,
     contents: [text],
+    mimeType: "text/plain",
+    sourceLanguageCode: sourceLanguage,
     targetLanguageCode: targetLanguage,
   });
 
   return response.translations?.[0]?.translatedText ?? "";
 }
+
