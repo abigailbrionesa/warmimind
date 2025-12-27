@@ -3,9 +3,9 @@ import { TranslationServiceClient } from '@google-cloud/translate';
 
 export const runtime = 'nodejs';
 
-const translateClient = new TranslationServiceClient();
+export const translateClient = new TranslationServiceClient();
 
-async function translateToQuechua(text: string) {
+export async function translateToQuechua(text: string) {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
   if (!projectId) throw new Error('GOOGLE_CLOUD_PROJECT_ID not set');
 
