@@ -1,24 +1,18 @@
 type Session = {
+  text: string;
   chunks: string[];
 };
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __sessions: Map<string, Session> | undefined;
-}
-
-const sessions =
-  globalThis.__sessions ?? new Map<string, Session>();
-
-if (!globalThis.__sessions) {
-  globalThis.__sessions = sessions;
-}
+const sessions = new Map<string, Session>();
 
 export function createSession(
   sessionId: string,
-  data: Session
+  text: string
 ) {
-  sessions.set(sessionId, data);
+  sessions.set(sessionId, {
+    text,
+    chunks: text.match(/.{1,800}/g) ?? [],
+  });
 }
 
 export function getSession(sessionId: string) {
