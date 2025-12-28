@@ -13,6 +13,7 @@ export default function Landing() {
     <main className="grid grid-cols-2 gap-6 p-6">
       <PdfSection
         onProcessed={(data) => {
+          console.log("PDF Processed:", data);
           setSummaryQu(data.summaryQu);
           setQuestionsQu(data.questionsQu);
           setSessionId(data.sessionId);
