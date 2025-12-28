@@ -2,7 +2,17 @@ type Session = {
   chunks: string[];
 };
 
-const sessions = new Map<string, Session>();
+declare global {
+  // eslint-disable-next-line no-var
+  var __sessions: Map<string, Session> | undefined;
+}
+
+const sessions =
+  globalThis.__sessions ?? new Map<string, Session>();
+
+if (!globalThis.__sessions) {
+  globalThis.__sessions = sessions;
+}
 
 export function createSession(
   sessionId: string,
