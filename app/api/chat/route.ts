@@ -5,12 +5,11 @@ import { getSession, addMessageToSession, sessions } from "@/lib/session-store";
 import { findRelevantChunks } from "@/lib/find-relevant-chunks";
 
 export const runtime = "nodejs";
-
 export async function POST(req: NextRequest) {
   try {
-    const { message, sessionId } = await req.json();
+    const { sessionId, message } = await req.json();
 
-    if (!message || !sessionId) {
+    if (!sessionId || !message) {
       return NextResponse.json(
         { error: "Missing message or sessionId" },
         { status: 400 }
@@ -25,15 +24,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const previousConversation = (session.chatHistory ?? [])
-      .map(m =>
-        m.role === "user"
-          ? `User: ${m.parts.map(p => p.type === "text" ? p.text : "").join("")}`
-          : `Assistant: ${m.parts.map(p => p.type === "text" ? p.text : "").join("")}`
-      )
+    const userText = message.parts
+      ? message.parts.filter((p: any) => p.type === "text").map((p: any) => p.text).join("\n")
+      : message.content ?? "";
+
+    if (!userText) {
+      return NextResponse.json(
+        { error: "Message has no text content" },
+        { status: 400 }
+      );
+    }
+    addMessageToSession(sessionId, {
+      id: crypto.randomUUID(),
+      role: "user",
+      parts: [{ type: "text", text: userText }],
+    });
+
+    const previousConversation = session.chatHistory
+      .map((m) => {
+        if (m.parts) return `${m.role === "user" ? "User" : "Assistant"}: ${m.parts.map(p => p.type === "text" ? p.text : "").join("")}`;
+        if ("content" in m) return `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`;
+        return "";
+      })
       .join("\n");
 
-    const relevantChunks = findRelevantChunks(message, session.chunks);
+    const relevantChunks = findRelevantChunks(userText, session.chunks);
 
     const systemPrompt = `
 You are a Quechua STEM tutor for young girls in Peru.
@@ -41,12 +56,6 @@ Use ONLY the provided PDF context and the previous conversation.
 Explain clearly and kindly.
 Respond ONLY in Quechua.
 `;
-
-    addMessageToSession(sessionId, {
-      id: crypto.randomUUID(),
-      role: "user",
-      parts: [{ type: "text", text: message }],
-    });
 
     let assistantText = "";
 
@@ -61,12 +70,10 @@ Previous conversation:
 ${previousConversation}
 
 New question:
-${message}
+${userText}
 `,
       onChunk: ({ chunk }) => {
-        if (chunk.type === "text-delta") {
-          assistantText += chunk.text;
-        }
+        if (chunk.type === "text-delta") assistantText += chunk.text;
       },
       onFinish: () => {
         addMessageToSession(sessionId, {
@@ -78,10 +85,10 @@ ${message}
     });
 
     return result.toUIMessageStreamResponse();
-  } catch (error: any) {
-    console.error("Chat API error:", error);
+  } catch (err: any) {
+    console.error("Chat API error:", err);
     return NextResponse.json(
-      { error: "Chat failed", message: error.message, stack: error.stack, type: error.constructor?.name },
+      { error: "Chat failed", message: err.message, type: err.constructor?.name },
       { status: 500 }
     );
   }
