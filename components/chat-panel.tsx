@@ -1,100 +1,78 @@
 "use client";
 
 import { useState } from "react";
-
-type Message = {
-  role: "user" | "assistant";
-  content: string;
+import { useChat, UIMessage } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+type ChatPanelProps = {
+  sessionId: string;
 };
 
-export default function ChatPanel({ sessionId }: { sessionId: string }) {
+export default function ChatPanel({ sessionId }: ChatPanelProps) {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  async function sendMessage() {
+const { messages, sendMessage, status } = useChat({
+  transport: new DefaultChatTransport({
+    api: "/api/chat",
+    body: ({ message } = {}) => ({
+  sessionId,
+  message: message ?? null,
+}),
+  }),
+  onFinish: ({ message }) => {
+    console.log("Assistant finished:", message);
+  },
+  onError: (error) => {
+    console.error("Chat error:", error);
+  },
+});
+
+
+  const handleSend = () => {
     if (!input.trim()) return;
-
-    const userMessage: Message = {
+    sendMessage({
       role: "user",
-      content: input,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
-
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: input,
-        sessionId,
-      }),
+      parts: [{ type: "text", text: input }],
     });
 
-    if (!res.body) return;
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let assistantText = "";
-
-    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      assistantText += decoder.decode(value);
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: assistantText,
-        };
-        return updated;
-      });
-    }
-
-    setLoading(false);
-  }
+    setInput("");
+  };
 
   return (
-    <section className="border rounded-lg p-4 flex flex-col gap-4">
+    <section className="border rounded-lg p-4 flex flex-col gap-4 h-full">
       <h2 className="font-semibold">💬 Rimay (Ask about this lesson)</h2>
 
-      <div className="flex-1 space-y-2 overflow-y-auto">
-        {messages.map((m, i) => (
+      <div className="flex-1 space-y-2 overflow-y-auto max-h-[400px]">
+        {messages.map((m) => (
           <div
-            key={i}
-            className={`p-2 rounded text-sm ${
-              m.role === "user"
-                ? "bg-blue-100 self-end"
-                : "bg-green-100 self-start"
-            }`}
+            key={m.id}
+            className={`p-2 rounded text-sm ${m.role === "user" ? "bg-blue-100 self-end" : "bg-green-100 self-start"
+              }`}
           >
-            {m.content}
+            {m.parts
+              .filter(p => p.type === "text")
+              .map((p, i) => (
+                <span key={i}>{p.text}</span>
+              ))}
           </div>
         ))}
 
-        {loading && (
-          <p className="text-sm text-gray-400">
-            AIGenie yachachkan…
-          </p>
+        {status === "streaming" && (
+          <p className="text-sm text-gray-400">AIGenie yachachkan…</p>
         )}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 mt-2">
         <input
           className="flex-1 border rounded px-3 py-2 text-sm"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Tapuy kay yachaymanta…"
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
         />
         <button
-          onClick={sendMessage}
-          className="bg-black text-white px-4 py-2 rounded text-sm"
+          onClick={handleSend}
+          disabled={status === "streaming"}
+          className="bg-black text-white px-4 py-2 rounded text-sm disabled:opacity-50"
         >
           Rimay
         </button>
