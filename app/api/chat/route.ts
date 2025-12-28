@@ -17,8 +17,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("Looking for session:", sessionId, sessions.has(sessionId));
-
     const session = getSession(sessionId);
     if (!session) {
       return NextResponse.json(
@@ -28,7 +26,11 @@ export async function POST(req: NextRequest) {
     }
 
     const previousConversation = (session.chatHistory ?? [])
-      .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+      .map(m =>
+        m.role === "user"
+          ? `User: ${m.parts.map(p => p.type === "text" ? p.text : "").join("")}`
+          : `Assistant: ${m.parts.map(p => p.type === "text" ? p.text : "").join("")}`
+      )
       .join("\n");
 
     const relevantChunks = findRelevantChunks(message, session.chunks);
@@ -40,9 +42,14 @@ Explain clearly and kindly.
 Respond ONLY in Quechua.
 `;
 
-    addMessageToSession(sessionId, { role: "user", content: message });
+    addMessageToSession(sessionId, {
+      id: crypto.randomUUID(),
+      role: "user",
+      parts: [{ type: "text", text: message }],
+    });
 
     let assistantText = "";
+
     const result = streamText({
       model: geminiModel,
       system: systemPrompt,
@@ -62,21 +69,19 @@ ${message}
         }
       },
       onFinish: () => {
-        addMessageToSession(sessionId, { role: "assistant", content: assistantText });
+        addMessageToSession(sessionId, {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          parts: [{ type: "text", text: assistantText }],
+        });
       },
     });
 
     return result.toUIMessageStreamResponse();
-
   } catch (error: any) {
     console.error("Chat API error:", error);
     return NextResponse.json(
-      {
-        error: "Chat failed",
-        message: error.message,
-        stack: error.stack,
-        type: error.constructor?.name
-      },
+      { error: "Chat failed", message: error.message, stack: error.stack, type: error.constructor?.name },
       { status: 500 }
     );
   }
