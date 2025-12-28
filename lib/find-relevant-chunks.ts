@@ -1,31 +1,23 @@
 export function findRelevantChunks(
-  question: string,
-  chunks: string[],
-  maxChunks: number = 4
-): string[] {
-  if (!chunks || chunks.length === 0) return [];
-
-  const questionWords = question
+  query: string,
+  chunks: string[]
+) {
+  const keywords = query
     .toLowerCase()
-    .split(/\W+/)
-    .filter(w => w.length > 3);
+    .split(" ")
+    .filter((w) => w.length > 3);
 
-  const scored = chunks.map(chunk => {
-    const chunkText = chunk.toLowerCase();
-    let score = 0;
-
-    for (const word of questionWords) {
-      if (chunkText.includes(word)) {
-        score += 1;
-      }
-    }
-
+  const scored = chunks.map((chunk) => {
+    const score = keywords.reduce(
+      (acc, word) =>
+        acc + (chunk.toLowerCase().includes(word) ? 1 : 0),
+      0
+    );
     return { chunk, score };
   });
 
   return scored
-    .filter(s => s.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, maxChunks)
-    .map(s => s.chunk);
+    .slice(0, 3)
+    .map((s) => s.chunk);
 }
