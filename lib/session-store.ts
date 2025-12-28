@@ -3,14 +3,13 @@ type Message = {
   content: string;
 };
 
-type Session = {
+export type Session = {
   text: string;
   chunks: string[];
   chatHistory: Message[];
 };
 
-
-const sessions = new Map<string, Session>();
+export const sessions = new Map<string, Session>();
 
 export function createSession(sessionId: string, text: string) {
   sessions.set(sessionId, {
