@@ -1,29 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
 import { google } from "@ai-sdk/google";
+import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
 import { detectLanguage, translate } from "@/lib/translate";
 import { createSession } from "@/lib/session-store";
 
 export const runtime = "nodejs";
 
-const model = google("gemini-2.5-flash");
+const geminiModel = google("gemini-2.5-flash");
 
 export async function POST(req: NextRequest) {
   try {
     const { text } = await req.json();
-    if (!text) {
-      return NextResponse.json(
-        { error: "No text provided" },
-        { status: 400 }
-      );
+
+    if (!text || typeof text !== "string") {
+      return NextResponse.json({ error: "No text provided" }, { status: 400 });
     }
 
     const detectedLang = await detectLanguage(text);
 
     const normalizedText =
-      detectedLang !== "es"
-        ? await translate(text, "es", detectedLang)
-        : text;
+      detectedLang !== "es" ? await translate(text, "es") : text;
 
     const prompt = `
 You are an educational AI helping young girls in Peru learn STEM.
@@ -35,7 +31,7 @@ TASKS:
 3. Generate exactly 5 open-ended questions.
 4. Avoid technical jargon unless explained.
 
-Return valid JSON ONLY (no markdown formatting):
+Return ONLY valid JSON (no markdown, no extra text):
 {
   "summary": "string",
   "questions": ["string", "string", "string", "string", "string"]
@@ -43,51 +39,34 @@ Return valid JSON ONLY (no markdown formatting):
 `;
 
     const result = await generateText({
-      model,
-      prompt: `${prompt}\n\nCONTENT:\n${normalizedText}`,
+      model: geminiModel,
+      prompt: `${prompt}\n\nCONTENT:\n${normalizedText.slice(0, 20000)}`,
       temperature: 0.4,
+      providerOptions: {
+        google: {
+          thinkingConfig: { thinkingBudget: 8192, includeThoughts: true },
+        },
+      },
     });
 
-    let jsonText = result.text.trim();
-    
-    if (jsonText.startsWith("```json")) {
-      jsonText = jsonText.replace(/```json\n?/g, "").replace(/```$/g, "");
-    } else if (jsonText.startsWith("```")) {
-      jsonText = jsonText.replace(/```\n?/g, "").replace(/```$/g, "");
+    let jsonText = result.text.trim().replace(/```json/gi, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(jsonText);
+
+    if (!parsed.summary || !Array.isArray(parsed.questions) || parsed.questions.length !== 5) {
+      throw new Error("Invalid AI JSON structure");
     }
-    
-    const parsed = JSON.parse(jsonText.trim());
 
-    const summaryQu = await translate(parsed.summary, "qu", "es");
-
-    const questionsQu = await Promise.all(
-      parsed.questions.map((q: string) =>
-        translate(q, "qu", "es")
-      )
-    );
+    const summaryQu = await translate(parsed.summary, "qu");
+    const questionsQu = await Promise.all(parsed.questions.map(q => translate(q, "qu")));
 
     const sessionId = crypto.randomUUID();
-    createSession(sessionId, {
-  chunks: normalizedText.match(/.{1,800}/g) || [],
-});
+    createSession(sessionId, normalizedText);
 
-console.log("SESSION CREATED:", sessionId);
-
-    return NextResponse.json({
-      sessionId,
-      summaryQu,
-      questionsQu,
-    });
+    return NextResponse.json({ sessionId, summaryQu, questionsQu });
   } catch (error: any) {
-    console.error("Process error:", error);
-    console.error("Error details:", error.message);
-    console.error("Stack trace:", error.stack);
+    console.error("PROCESS ERROR:", error);
     return NextResponse.json(
-      { 
-        error: "Failed to process PDF",
-        details: error.message,
-        type: error.constructor.name
-      },
+      { error: "Failed to process PDF", details: error.message, type: error.constructor?.name },
       { status: 500 }
     );
   }
