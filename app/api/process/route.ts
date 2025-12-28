@@ -2,7 +2,7 @@ import { google } from "@ai-sdk/google";
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
 import { detectLanguage, translate } from "@/lib/translate";
-import { createSession } from "@/lib/session-store";
+import { createSession, sessions } from "@/lib/session-store";
 
 export const runtime = "nodejs";
 const geminiModel = google("gemini-2.5-flash");
@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
     const sessionId = crypto.randomUUID();
     createSession(sessionId, normalizedText);
 
+console.log("Created session:", sessionId, sessions.has(sessionId));
 
     return NextResponse.json({ sessionId, summaryQu, questionsQu });
 
