@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { streamText } from "ai";
 import { geminiModel } from "@/lib/ai-model";
-import { getSession } from "@/lib/session-store";
+import { getSession, addMessageToSession, sessions } from "@/lib/session-store";
 import { findRelevantChunks } from "@/lib/find-relevant-chunks";
-import { addMessageToSession } from "@/lib/session-store";
-import { sessions } from "@/lib/session-store";
 
 export const runtime = "nodejs";
-
-
-
-
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,7 +16,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-console.log("Looking for session:", sessionId, sessions.has(sessionId));
+
+    console.log("Looking for session:", sessionId, sessions.has(sessionId));
 
     const session = getSession(sessionId);
     if (!session) {
@@ -32,19 +27,13 @@ console.log("Looking for session:", sessionId, sessions.has(sessionId));
       );
     }
 
-    const previousConversation = session.chatHistory
+    // Build previous conversation string
+    const previousConversation = (session.chatHistory ?? [])
       .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
       .join("\n");
 
-
-
-    const relevantChunks = findRelevantChunks(
-      message,
-      session.chunks
-    );
-
-
-
+    // Find relevant PDF chunks
+    const relevantChunks = findRelevantChunks(message, session.chunks);
 
     const systemPrompt = `
 You are a Quechua STEM tutor for young girls in Peru.
@@ -53,11 +42,13 @@ Explain clearly and kindly.
 Respond ONLY in Quechua.
 `;
 
+    // Add user message immediately to session
+    addMessageToSession(sessionId, { role: "user", content: message });
 
-    const result = await streamText({
+    // Stream AI response directly
+    const result = streamText({
       model: geminiModel,
       system: systemPrompt,
-      
       prompt: `
 PDF CONTEXT:
 ${relevantChunks.join("\n")}
@@ -70,37 +61,19 @@ ${message}
 `,
     });
 
-
-
-    addMessageToSession(sessionId, { role: "user", content: message });
-
-
-    let assistantText = "";
-    const reader = result.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      assistantText += decoder.decode(value);
-    }
-
-    addMessageToSession(sessionId, { role: "assistant", content: assistantText });
-
-
-
+    // Return streaming response directly
     return result.toUIMessageStreamResponse();
 
-
-} catch (error: any) {
-  console.error("Chat API error:", error);
-  return NextResponse.json(
-    {
-      error: "Chat failed",
-      message: error.message,
-      stack: error.stack,
-      type: error.constructor?.name
-    },
-    { status: 500 }
-  );
-}}
+  } catch (error: any) {
+    console.error("Chat API error:", error);
+    return NextResponse.json(
+      {
+        error: "Chat failed",
+        message: error.message,
+        stack: error.stack,
+        type: error.constructor?.name
+      },
+      { status: 500 }
+    );
+  }
+}
