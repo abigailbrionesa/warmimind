@@ -84,7 +84,7 @@ RULES:
 - Do NOT add outside knowledge.
 - Do NOT add cultural examples.
 - Be clear and factual.
-- If the answer is not in the PDF, say so plainly.
+- If the exact answer is not found, summarize the closest content in the PDF
 `,
       prompt: `
 PDF CONTEXT:
