@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { streamText } from "ai";
+import { streamText, generateText } from "ai";
 import { geminiModel } from "@/lib/ai-model";
 import { getSession, addMessageToSession } from "@/lib/session-store";
 import { findRelevantChunks } from "@/lib/find-relevant-chunks";
-import { generateText } from "ai";
 import type { UIMessage } from "ai";
-
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, messages }: { sessionId: string; messages: UIMessage[] } =
-      await req.json();
+    const {
+      sessionId,
+      messages,
+    }: { sessionId: string; messages: UIMessage[] } = await req.json();
 
     if (!sessionId || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
@@ -29,17 +29,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // messages guaranteed non-empty by validation above
     const lastMessage = messages.at(-1);
     if (!lastMessage) {
       return NextResponse.json(
-        { error: "No last message found" },
+        { error: "Invariant violation: no last message" },
         { status: 400 }
       );
     }
+
     const userText =
       lastMessage.parts
         ?.map(p => (p.type === "text" ? p.text : ""))
         .join("") ?? "";
+
+
+    const trimmed = userText.trim().toLowerCase();
+    const isGreeting =
+      trimmed.length <= 12 &&
+      /^(hello|hi|hola|rimaykullayki)$/.test(trimmed);
+
+    if (isGreeting) {
+      const greeting = "Rimaykullayki. Imaynallan kashanki?";
+      addMessageToSession(sessionId, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        parts: [{ type: "text", text: greeting }],
+      });
+
+      return NextResponse.json({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        parts: [{ type: "text", text: greeting }],
+      });
+    }
 
     addMessageToSession(sessionId, {
       id: crypto.randomUUID(),
@@ -47,27 +70,22 @@ export async function POST(req: NextRequest) {
       parts: [{ type: "text", text: userText }],
     });
 
-    const previousConversation = session.chatHistory
-      .map(
-        m =>
-          `${m.role === "user" ? "User" : "Assistant"}: ${m.parts?.map(p => (p.type === "text" ? p.text : "")).join("") ?? ""
-          }`
-      )
-      .join("\n");
-
     const relevantChunks = findRelevantChunks(userText, session.chunks);
 
-
+    // -------------------------
+    // 2️⃣ GROUNDED STEM AGENT
+    // -------------------------
     const groundingResult = await generateText({
       model: geminiModel,
+      temperature: 0.2,
       system: `
 You are a STEM content grounding agent.
 
 RULES:
 - Use ONLY the provided PDF context.
 - Do NOT add outside knowledge.
-- Do NOT include cultural examples.
-- Write in simple, neutral language.
+- Do NOT add cultural examples.
+- Use short, factual explanations.
 - If the answer is not in the PDF, say so clearly.
 `,
       prompt: `
@@ -77,27 +95,30 @@ ${relevantChunks.join("\n")}
 Question:
 ${userText}
 
-Provide a grounded STEM explanation:
+Provide a grounded explanation:
 `,
     });
 
     const groundedExplanation = groundingResult.text;
 
-
+    // -------------------------
+    // 3️⃣ CULTURAL ADAPTATION AGENT
+    // -------------------------
     const culturalResult = await generateText({
       model: geminiModel,
+      temperature: 0.3,
       system: `
 You are a cultural adaptation agent for Andean communities in Peru.
 
 RULES:
-- Adapt the explanation using Andean daily life.
-- Use examples from farming, weaving, mountains, seasons, or community work.
-- Teach as if speaking to a child.
-- Start with a concrete lived example.
-- Do NOT translate into Quechua yet.
+- Adapt using everyday Andean life (fields, animals, water, weaving).
+- Be practical and instructional.
+- Avoid myths, legends, or ceremonial tone.
+- Do NOT expand length unnecessarily.
+- Do NOT translate to Quechua yet.
 `,
       prompt: `
-Grounded STEM explanation:
+Grounded explanation:
 ${groundedExplanation}
 
 Adapt this explanation culturally:
@@ -106,24 +127,24 @@ Adapt this explanation culturally:
 
     const culturallyAdapted = culturalResult.text;
 
-
     let assistantText = "";
 
     const result = streamText({
       model: geminiModel,
+      temperature: 0.25,
 
       system: `
-You are a Quechua linguistic authenticity agent.
+You are a Quechua (Southern Peru) linguistic authenticity agent.
 
 MANDATORY RULES:
 - Respond ONLY in Quechua.
-- Use natural Quechua sentence structure (not Spanish).
-- Use Quechua particles and suffixes where appropriate (-mi, -qa, -chu).
-- Use oral teaching style.
-- Avoid literal translation.
-- Output TEXT ONLY.
+- Use natural Quechua syntax (not Spanish).
+- Speak clearly, like a teacher or older sister.
+- Avoid storytelling unless explicitly requested.
+- Keep response proportional to input length.
+- Output text only.
 
-FINAL SELF-CHECK (silent):
+Silent self-check:
 If this sounds translated, rewrite internally before responding.
 `,
 
@@ -131,7 +152,7 @@ If this sounds translated, rewrite internally before responding.
 Culturally adapted explanation:
 ${culturallyAdapted}
 
-Rewrite this as natural spoken Quechua for a child:
+Rewrite this as clear spoken Quechua for a young person:
 `,
 
       onChunk: ({ chunk }) => {
@@ -150,8 +171,6 @@ Rewrite this as natural spoken Quechua for a child:
     });
 
     return result.toUIMessageStreamResponse();
-
-
   } catch (err: any) {
     console.error("Chat API error:", err);
     return NextResponse.json(
