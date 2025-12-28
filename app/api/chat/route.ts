@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { google } from "@ai-sdk/google";
 import { streamText } from "ai";
+import { geminiModel } from "@/lib/ai-model";
 import { getSession } from "@/lib/session-store";
 import { findRelevantChunks } from "@/lib/find-relevant-chunks";
 
 export const runtime = "nodejs";
-const model = google("models/gemini-1.5-pro");
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +16,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-console.log("SESSION REQUESTED:", sessionId);
 
     const session = getSession(sessionId);
     if (!session) {
@@ -26,9 +24,6 @@ console.log("SESSION REQUESTED:", sessionId);
         { status: 400 }
       );
     }
-
-    console.log("SESSION FOUND:", !!session);
-
 
     const relevantChunks = findRelevantChunks(
       message,
@@ -43,7 +38,7 @@ Respond ONLY in Quechua.
 `;
 
     const result = await streamText({
-      model,
+      model: geminiModel,
       system: systemPrompt,
       prompt: `
 PDF CONTEXT:
