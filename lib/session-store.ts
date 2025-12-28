@@ -1,12 +1,9 @@
-type Message = {
-  role: "user" | "assistant";
-  content: string;
-};
+import { UIMessage } from "@ai-sdk/react";
 
 export type Session = {
   text: string;
   chunks: string[];
-  chatHistory: Message[];
+  chatHistory: UIMessage[];
 };
 
 export const sessions = new Map<string, Session>();
@@ -19,12 +16,11 @@ export function createSession(sessionId: string, text: string) {
   });
 }
 
-export function addMessageToSession(sessionId: string, message: Message) {
+export function addMessageToSession(sessionId: string, message: UIMessage) {
   const session = sessions.get(sessionId);
   if (!session) return;
   session.chatHistory.push(message);
 }
-
 
 export function getSession(sessionId: string) {
   return sessions.get(sessionId);
