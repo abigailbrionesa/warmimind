@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { streamText, generateText } from "ai";
+import { generateText, streamText } from "ai";
+import type { UIMessage } from "ai";
+
 import { geminiModel } from "@/lib/ai-model";
 import { getSession, addMessageToSession } from "@/lib/session-store";
 import { findRelevantChunks } from "@/lib/find-relevant-chunks";
-import type { UIMessage } from "ai";
 
 export const runtime = "nodejs";
 
@@ -21,15 +22,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+
     const session = getSession(sessionId);
     if (!session) {
-      return NextResponse.json(
+     return NextResponse.json(
         { error: "Session not found or expired" },
-        { status: 400 }
-      );
+        { status: 400 })
     }
 
-    // messages guaranteed non-empty by validation above
     const lastMessage = messages.at(-1);
     if (!lastMessage) {
       return NextResponse.json(
@@ -43,8 +43,8 @@ export async function POST(req: NextRequest) {
         ?.map(p => (p.type === "text" ? p.text : ""))
         .join("") ?? "";
 
-
     const trimmed = userText.trim().toLowerCase();
+
     const isGreeting =
       trimmed.length <= 12 &&
       /^(hello|hi|hola|rimaykullayki)$/.test(trimmed);
@@ -70,29 +70,27 @@ export async function POST(req: NextRequest) {
       parts: [{ type: "text", text: userText }],
     });
 
+
     const relevantChunks = findRelevantChunks(userText, session.chunks);
 
-    // -------------------------
-    // 2️⃣ GROUNDED STEM AGENT
-    // -------------------------
     const groundingResult = await generateText({
       model: geminiModel,
       temperature: 0.2,
       system: `
-You are a STEM content grounding agent.
+You are a STEM grounding agent.
 
 RULES:
 - Use ONLY the provided PDF context.
 - Do NOT add outside knowledge.
 - Do NOT add cultural examples.
-- Use short, factual explanations.
-- If the answer is not in the PDF, say so clearly.
+- Be clear and factual.
+- If the answer is not in the PDF, say so plainly.
 `,
       prompt: `
 PDF CONTEXT:
 ${relevantChunks.join("\n")}
 
-Question:
+QUESTION:
 ${userText}
 
 Provide a grounded explanation:
@@ -101,32 +99,6 @@ Provide a grounded explanation:
 
     const groundedExplanation = groundingResult.text;
 
-    // -------------------------
-    // 3️⃣ CULTURAL ADAPTATION AGENT
-    // -------------------------
-    const culturalResult = await generateText({
-      model: geminiModel,
-      temperature: 0.3,
-      system: `
-You are a cultural adaptation agent for Andean communities in Peru.
-
-RULES:
-- Adapt using everyday Andean life (fields, animals, water, weaving).
-- Be practical and instructional.
-- Avoid myths, legends, or ceremonial tone.
-- Do NOT expand length unnecessarily.
-- Do NOT translate to Quechua yet.
-`,
-      prompt: `
-Grounded explanation:
-${groundedExplanation}
-
-Adapt this explanation culturally:
-`,
-    });
-
-    const culturallyAdapted = culturalResult.text;
-
     let assistantText = "";
 
     const result = streamText({
@@ -134,25 +106,24 @@ Adapt this explanation culturally:
       temperature: 0.25,
 
       system: `
-You are a Quechua (Southern Peru) linguistic authenticity agent.
+You are a Quechua (Southern Peru) STEM tutor for young girls.
 
 MANDATORY RULES:
 - Respond ONLY in Quechua.
-- Use natural Quechua syntax (not Spanish).
-- Speak clearly, like a teacher or older sister.
-- Avoid storytelling unless explicitly requested.
-- Keep response proportional to input length.
+- Use clear, modern, instructional Quechua.
+- Speak like a teacher or older sister, not a storyteller.
+- Use practical Andean examples ONLY if helpful.
+- Avoid myths, legends, or ceremonial tone.
+- Keep response length proportional to the question.
+- Do NOT add information not present in the grounded explanation.
 - Output text only.
-
-Silent self-check:
-If this sounds translated, rewrite internally before responding.
 `,
 
       prompt: `
-Culturally adapted explanation:
-${culturallyAdapted}
+GROUNDED STEM EXPLANATION:
+${groundedExplanation}
 
-Rewrite this as clear spoken Quechua for a young person:
+Rewrite this as culturally grounded spoken Quechua:
 `,
 
       onChunk: ({ chunk }) => {
