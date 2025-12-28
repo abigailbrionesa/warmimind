@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useChat, UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+
 type ChatPanelProps = {
   sessionId: string;
 };
@@ -10,30 +11,34 @@ type ChatPanelProps = {
 export default function ChatPanel({ sessionId }: ChatPanelProps) {
   const [input, setInput] = useState("");
 
-const { messages, sendMessage, status } = useChat({
-  transport: new DefaultChatTransport({
-    api: "/api/chat",
-    body: ({ message } = {}) => ({
-  sessionId,
-  message: message ?? null,
-}),
-  }),
-  onFinish: ({ message }) => {
-    console.log("Assistant finished:", message);
-  },
-  onError: (error) => {
-    console.error("Chat error:", error);
-  },
-});
-
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      body: (payload) => ({
+        sessionId,
+        message: payload,
+      }),
+    }),
+    onFinish: (payload) => {
+      if (payload?.message) {
+        console.log("Assistant finished:", payload.message);
+      }
+    },
+    onError: (error) => {
+      console.error("Chat error:", error);
+    },
+  });
 
   const handleSend = () => {
     if (!input.trim()) return;
-    sendMessage({
+
+    const userMessage: UIMessage = {
+      id: crypto.randomUUID(),
       role: "user",
       parts: [{ type: "text", text: input }],
-    });
+    };
 
+    sendMessage(userMessage);
     setInput("");
   };
 
@@ -45,11 +50,12 @@ const { messages, sendMessage, status } = useChat({
         {messages.map((m) => (
           <div
             key={m.id}
-            className={`p-2 rounded text-sm ${m.role === "user" ? "bg-blue-100 self-end" : "bg-green-100 self-start"
-              }`}
+            className={`p-2 rounded text-sm ${
+              m.role === "user" ? "bg-blue-100 self-end" : "bg-green-100 self-start"
+            }`}
           >
             {m.parts
-              .filter(p => p.type === "text")
+              .filter((p) => p.type === "text")
               .map((p, i) => (
                 <span key={i}>{p.text}</span>
               ))}
