@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { BotIcon, Flower } from "lucide-react";
 
 type ChatPanelProps = {
   sessionId: string;
@@ -10,60 +13,118 @@ type ChatPanelProps = {
   questionsQu: string[];
 };
 
-export default function ChatPanel({ sessionId }: ChatPanelProps) {
+export default function ChatPanel({ sessionId, questionsQu }: ChatPanelProps) {
   const [input, setInput] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+const [isTyping, setIsTyping] = useState(false);
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, stop } = useChat({
     transport: new DefaultChatTransport({
-      api: '/api/chat',
-      body: { sessionId }
+      api: "/api/chat",
+      body: { sessionId },
     }),
-
-
   });
 
   const handleSend = () => {
-    if (!input.trim()) return;
+  if (!input.trim()) return;
 
-    sendMessage({
-      role: "user",
-      parts: [{ type: "text", text: input }],
-    });
-    setInput("");
-  };
+  sendMessage({
+    role: "user",
+    parts: [{ type: "text", text: input }],
+  });
+
+  setInput("");
+  setIsTyping(true);
+};
+
+useEffect(() => {
+  const lastMessage = messages[messages.length - 1];
+  if (lastMessage?.role === "assistant") {
+    setIsTyping(false);
+  }
+}, [messages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   return (
-    <section className="border rounded p-4 flex flex-col gap-3">
-      <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-50 rounded">
-       {messages.map(message => (
-        <div key={message.id}>
-          {message.role === 'user' ? 'User: ' : 'AI: '}
-          {message.parts.map((part, index) =>
-            part.type === 'text' ? <span key={index}>{part.text}</span> : null,
-          )}
-        </div>
-      ))}
+    <section className="flex flex-col h-full border rounded-lg p-4 bg-gray-50 shadow-sm">
+      {/* Chat history */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-3">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex items-start gap-2 max-w-[80%] break-words ${
+              message.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
+            }`}
+          >
+            {message.role === "assistant" ? (
+              <BotIcon className="w-6 h-6 text-green-700 mt-1" />
+            ) : (
+              <Flower className="w-6 h-6 text-pink-500 mt-1" />
+            )}
 
-        {(status === 'submitted' || status === 'streaming') && (
-        <div>
-          {status === 'submitted' &&<div>loading</div>}
-          <button type="button" onClick={() => stop()}>
-            Stop
-          </button>
+            <div
+              className={`px-3 py-2 rounded-2xl text-sm shadow-sm ${
+                message.role === "user"
+                  ? "bg-blue-200 text-blue-900"
+                  : "bg-green-200 text-green-900"
+              }`}
+            >
+              {message.parts.map((part, idx) =>
+                part.type === "text" ? <p key={idx}>{part.text}</p> : null
+              )}
+            </div>
+          </div>
+        ))}
+
+       {isTyping && (
+  <div className="flex items-center gap-2 mt-1">
+    <BotIcon className="w-6 h-6 text-green-700 mt-1 animate-bounce" />
+    <div className="flex gap-1">
+      <span className="w-2 h-2 bg-green-700 rounded-full animate-bounce delay-0"></span>
+      <span className="w-2 h-2 bg-green-700 rounded-full animate-bounce delay-200"></span>
+      <span className="w-2 h-2 bg-green-700 rounded-full animate-bounce delay-400"></span>
+    </div>
+    <span className="text-gray-600 text-sm italic">Thinking...</span>
+  </div>
+)}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {questionsQu && questionsQu.length > 0 && (
+        <div className="flex flex-wrap gap-2 my-2">
+          {questionsQu.map((q, idx) => (
+            <div
+              key={idx}
+              className="text-xs"
+              onClick={() => sendMessage({ role: "user", parts: [{ type: "text", text: q }] })}
+            >
+              {q}
+            </div>
+          ))}
         </div>
       )}
 
-      </div>
-
-       <input
+      <div className="flex gap-2 mt-2">
+        <Input
           value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Say something..."
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask me about STEM or your PDF..."
+          className="flex-1"
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
         />
-
-      <button onClick={handleSend} disabled={status === "streaming"}>
-          Submit
-        </button>
+        <Button onClick={handleSend} disabled={status === "streaming"}>
+          Send
+        </Button>
+        {status === "streaming" && (
+          <Button variant="destructive" onClick={() => stop()}>
+            Stop
+          </Button>
+        )}
+      </div>
     </section>
   );
 }
