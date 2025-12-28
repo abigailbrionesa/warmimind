@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session-store";
 import { findRelevantChunks } from "@/lib/find-relevant-chunks";
 
 export const runtime = "nodejs";
+const model = google("models/gemini-1.5-pro");
 
 export async function POST(req: NextRequest) {
   try {
