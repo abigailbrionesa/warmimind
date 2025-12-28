@@ -2,29 +2,31 @@
 
 import { useState } from "react";
 import PdfSection from "@/components/pdf-section";
-import LearningSection from "@/components/learning-section";
+import ChatPanel from "@/components/chat-panel";
 
 export default function Landing() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [summaryQu, setSummaryQu] = useState<string | null>(null);
   const [questionsQu, setQuestionsQu] = useState<string[]>([]);
-  const [sessionId, setSessionId] = useState<string | null>(null);
 
   return (
     <main className="grid grid-cols-2 gap-6 p-6">
       <PdfSection
         onProcessed={(data) => {
           console.log("PDF Processed:", data);
+          setSessionId(data.sessionId);
           setSummaryQu(data.summaryQu);
           setQuestionsQu(data.questionsQu);
-          setSessionId(data.sessionId);
         }}
       />
 
-      <LearningSection
-        summaryQu={summaryQu}
-        questionsQu={questionsQu}
-        sessionId={sessionId}
-      />
+      {sessionId && (
+        <ChatPanel
+          sessionId={sessionId}
+          summaryQu={summaryQu}
+          questionsQu={questionsQu}
+        />
+      )}
     </main>
   );
 }
