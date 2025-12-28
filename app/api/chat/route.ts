@@ -27,12 +27,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build previous conversation string
     const previousConversation = (session.chatHistory ?? [])
       .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
       .join("\n");
 
-    // Find relevant PDF chunks
     const relevantChunks = findRelevantChunks(message, session.chunks);
 
     const systemPrompt = `
@@ -42,10 +40,9 @@ Explain clearly and kindly.
 Respond ONLY in Quechua.
 `;
 
-    // Add user message immediately to session
     addMessageToSession(sessionId, { role: "user", content: message });
 
-    // Stream AI response directly
+    let assistantText = "";
     const result = streamText({
       model: geminiModel,
       system: systemPrompt,
@@ -59,9 +56,16 @@ ${previousConversation}
 New question:
 ${message}
 `,
+      onChunk: ({ chunk }) => {
+        if (chunk.type === "text-delta") {
+          assistantText += chunk.text;
+        }
+      },
+      onFinish: () => {
+        addMessageToSession(sessionId, { role: "assistant", content: assistantText });
+      },
     });
 
-    // Return streaming response directly
     return result.toUIMessageStreamResponse();
 
   } catch (error: any) {
