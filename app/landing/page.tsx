@@ -4,6 +4,7 @@ import { useState } from "react";
 import PdfSection from "@/components/pdf-section";
 import ChatPanel from "@/components/chat-panel";
 import PDFViewer from "@/components/PDFViewer";
+
 export default function Landing() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [summaryQu, setSummaryQu] = useState<string | null>(null);
@@ -20,8 +21,6 @@ export default function Landing() {
             setPdfFile(fileUrl);
           }}
         />
-
-      
 
       {pdfFile && sessionId && (
         <div className="flex gap-4 bg-primary h-full w-full overflow-y-auto">
