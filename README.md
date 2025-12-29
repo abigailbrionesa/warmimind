@@ -6,7 +6,7 @@ An intelligent PDF analysis and educational platform designed to help young girl
 
 WarmiMind is a Next.js application that combines document processing, AI-powered analysis, and culturally-grounded education. It extracts PDF content, generates summaries, creates learning questions, and provides interactive chat-based tutoring—all with Quechua language support for indigenous communities in Peru.
 
-## ✨ Key Features
+## Key Features
 
 ### 1. **PDF Upload & Processing**
 - Drag-and-drop PDF upload interface
@@ -75,7 +75,7 @@ WarmiMind is a Next.js application that combines document processing, AI-powered
 - **Build Tool**: Next.js built-in bundler
 - **Fonts**: Google Fonts (Figtree, Belanosima)
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 .
