@@ -24,7 +24,7 @@ export default function Landing() {
       
 
       {pdfFile && sessionId && (
-        <div className="flex gap-4 bg-primary h-full  overflow-y-auto">
+        <div className="flex gap-4 bg-primary h-full w-full overflow-y-auto">
 
           {pdfFile && (
             <div className="basis-2/5 overflow-y-auto h-full border rounded-lg shadow-md">
