@@ -2,8 +2,9 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import pdfToText from "react-pdftotext";
-import PDFViewer from "./PDFViewer";
+
 type PdfSectionProps = {
   onProcessed: (
     data: { summaryQu: string; questionsQu: string[]; sessionId: string },
@@ -51,10 +52,14 @@ export default function PdfSection({ onProcessed }: PdfSectionProps) {
 
   return (
     <section className="p-6 flex flex-col gap-4 border rounded-lg bg-card text-card-foreground shadow-md">
-      <h2 className="font-semibold text-lg text-center">
-        WarmiMind
-      </h2>
-
+<div className="flex justify-center my-4 bg-amber-950 py-5">
+  <Image
+    src="/warmimind.png"
+    alt="STEM example"
+    width={300}
+    height={200}
+  />
+</div>
       {!pdfFile && (
         <label
           htmlFor="pdf-upload"
