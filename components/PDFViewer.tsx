@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 const PDFViewer = dynamic(
   async () => {
@@ -20,6 +22,7 @@ const PDFViewer = dynamic(
             const containerHeight = containerRef.current.offsetHeight;
             const containerWidth = containerRef.current.offsetWidth;
 
+            // Optional: scale width proportionally to height
             setPageWidth(containerWidth); // Keep full width, let height scroll
           }
         }
@@ -29,17 +32,19 @@ const PDFViewer = dynamic(
       }, []);
 
       return (
-        <div ref={containerRef} className="flex-1 h-full overflow-auto relative">
-  <Document file={file} onLoadSuccess={(pdf) => setNumPages(pdf.numPages)}>
-    {Array.from({ length: numPages }, (_, i) => (
-      <Page
-        key={i + 1}
-        pageNumber={i + 1}
-        width={containerRef.current?.offsetWidth}
-      />
-    ))}
-  </Document>
-</div>
+        <div ref={containerRef} className="flex-1 h-full overflow-auto">
+          <Document file={file} onLoadSuccess={(pdf) => setNumPages(pdf.numPages)}>
+            {Array.from({ length: numPages }, (_, i) => (
+              <Page
+                key={i + 1}
+                pageNumber={i + 1}
+                width={pageWidth}
+                renderTextLayer
+                renderAnnotationLayer
+              />
+            ))}
+          </Document>
+        </div>
       );
     };
   },
