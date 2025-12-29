@@ -13,6 +13,9 @@ export default function Landing() {
 
   return (
     <main className="flex-col flex items-center justify-center gap-4 h-screen w-screen p-4 bg-primary">
+       
+             {!pdfFile && !sessionId && (
+
         <PdfSection
           onProcessed={(data, fileUrl) => {
             setSessionId(data.sessionId);
@@ -21,7 +24,7 @@ export default function Landing() {
             setPdfFile(fileUrl);
           }}
         />
-
+        )}
       {pdfFile && sessionId && (
         <div className="flex gap-4 bg-primary h-full w-full overflow-y-auto">
 
