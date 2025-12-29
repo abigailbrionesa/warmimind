@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       messages,
     }: { sessionId: string; messages: UIMessage[] } = await req.json();
 
-    if (!sessionId || !Array.isArray(messages) || messages.length === 0) {
+    if (!sessionId  || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
         { error: "Missing sessionId or messages" },
         { status: 400 }
