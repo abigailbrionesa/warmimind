@@ -78,7 +78,6 @@ WarmiMind is a Next.js application that combines document processing, AI-powered
 ## Project Structure
 
 ```
-.
 ├── app/
 │   ├── layout.tsx              # Root layout with metadata
 │   ├── globals.css             # Global styles
@@ -93,8 +92,6 @@ WarmiMind is a Next.js application that combines document processing, AI-powered
 │       │   └── route.ts       # PDF processing and summarization
 │       └── gemini-summary/
 │           └── route.ts       # Gemini-based summary generation
-│
-
 ├── lib/
 │   ├── translate.ts           # Google Cloud Translation utilities
 │   ├── session-store.ts       # Session management
