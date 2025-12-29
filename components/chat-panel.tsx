@@ -166,7 +166,7 @@ export default function ChatPanel({ sessionId, summaryQu, questionsQu }: ChatPan
         <div
           key={idx}
           onClick={() => copyToClipboard(q)}
-          className="flex items-center justify-between p-3 bg-card-foreground/5 rounded-lg hover:bg-secondary/10 transition-all text-sm text-foreground shadow-sm"
+          className="flex  items-center justify-between p-3 bg-card-foreground/5 rounded-lg hover:bg-secondary/10 transition-all text-sm text-foreground shadow-sm"
         >
           <span>{q}</span>
           <Copy className="w-4 h-4 text-muted-foreground" />
