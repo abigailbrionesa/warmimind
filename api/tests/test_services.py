@@ -49,11 +49,7 @@ from app.api.v1 import learning
 
 class LearningServicesTest(unittest.TestCase):
     def setUp(self) -> None:
-        services.store.documents.clear()
-        services.store.document_text.clear()
-        services.store.chunks.clear()
-        services.store.sessions.clear()
-        services.store.eval_runs.clear()
+        services.store.reset()
 
     def test_invalid_file_type_is_rejected(self) -> None:
         with self.assertRaises(services.UserFacingError):
@@ -71,7 +67,7 @@ class LearningServicesTest(unittest.TestCase):
             build_pdf_bytes("Force changes motion. " * 20 + "Energy describes the ability to do work. " * 20),
         )
 
-        extracted = services.store.document_text[document.document_id]
+        extracted = services.store.get_document_text(document.document_id)
         self.assertIn("Force changes motion", extracted)
         self.assertGreaterEqual(len(chunks), 1)
 
@@ -171,7 +167,7 @@ class LearningServicesTest(unittest.TestCase):
 
     def test_eval_run_is_stored(self) -> None:
         run = services.run_eval()
-        self.assertIn(run["run_id"], services.store.eval_runs)
+        self.assertEqual(services.get_eval_run(run["run_id"]), run)
 
 
 class FakeUpload:

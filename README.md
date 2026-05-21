@@ -84,7 +84,14 @@ GOOGLE_CLOUD_PROJECT_ID=your-project-id
 GOOGLE_GENERATIVE_AI_API_KEY=your-google-ai-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+REPOSITORY_BACKEND=memory
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
 ```
+
+Set `REPOSITORY_BACKEND=supabase` with `SUPABASE_URL` and a server-only
+`SUPABASE_SERVICE_ROLE_KEY` to persist v2 app data in Supabase. The default
+`memory` backend is intended for local validation and tests.
 
 ### Develop
 
@@ -184,6 +191,18 @@ The FastAPI skeleton lives in `api/` and exposes:
 - `POST /api/v1/evals/runs`
 - `GET /api/v1/evals/runs`
 - `GET /api/v1/evals/runs/{run_id}`
+
+## v2 Persistence
+
+The FastAPI backend uses a repository layer. By default it stores app data in
+memory for local validation. When configured with Supabase credentials, it
+persists document metadata, extracted text, source chunks, learning sessions,
+learning outputs, misconception checks, and eval runs to the Supabase tables in
+`migrations/`.
+
+Raw uploaded PDF bytes are still intentionally deferred. This means Supabase app
+data can survive API restarts, while file re-download, signed PDF URLs, and rich
+PDF viewer highlighting remain future storage work.
 
 ## Validation
 

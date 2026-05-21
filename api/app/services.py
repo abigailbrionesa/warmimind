@@ -1,9 +1,10 @@
 import hashlib
 import math
 import re
-from dataclasses import dataclass, field
+from typing import Any
 from uuid import uuid4
 
+from app.core.config import settings
 from app.document_processing import PdfTextExtractionError, extract_text_from_pdf_bytes
 from app.models import (
     ChatMessage,
@@ -17,6 +18,7 @@ from app.models import (
     RetrievalResult,
     SessionStatus,
 )
+from app.repositories import build_repository
 
 MAX_FILE_BYTES = 12 * 1024 * 1024
 CHUNK_CHARS = 900
@@ -64,16 +66,7 @@ class UserFacingError(ValueError):
     pass
 
 
-@dataclass
-class LearningStore:
-    documents: dict[str, DocumentMetadata] = field(default_factory=dict)
-    document_text: dict[str, str] = field(default_factory=dict)
-    chunks: dict[str, list[DocumentChunk]] = field(default_factory=dict)
-    sessions: dict[str, LearningSession] = field(default_factory=dict)
-    eval_runs: dict[str, dict] = field(default_factory=dict)
-
-
-store = LearningStore()
+store = build_repository(settings)
 
 
 def validate_pdf_upload(file_name: str, content_type: str, content: bytes) -> None:
@@ -173,15 +166,13 @@ def create_document(file_name: str, content_type: str, content: bytes) -> tuple[
     )
     chunks = chunk_text(document_id, text)
 
-    store.documents[document_id] = document
-    store.document_text[document_id] = text
-    store.chunks[document_id] = chunks
+    store.save_document(document, text, chunks)
 
     return document, chunks
 
 
 def create_learning_session(document_id: str) -> LearningSession:
-    if document_id not in store.documents:
+    if not store.get_document(document_id):
         raise UserFacingError("Document was not found.")
 
     session = LearningSession(
@@ -189,22 +180,29 @@ def create_learning_session(document_id: str) -> LearningSession:
         document_id=document_id,
         status=SessionStatus.processed,
     )
-    store.sessions[session.session_id] = session
+    store.save_session(session)
     return session
 
 
 def get_session(session_id: str) -> LearningSession:
-    session = store.sessions.get(session_id)
+    session = store.get_session(session_id)
     if not session:
         raise UserFacingError("Learning session was not found.")
     return session
+
+
+def get_document_with_chunks(document_id: str) -> tuple[DocumentMetadata, list[DocumentChunk]]:
+    document = store.get_document(document_id)
+    if not document:
+        raise UserFacingError("Document was not found.")
+    return document, store.get_chunks(document_id)
 
 
 def retrieve_chunks(session_id: str, query: str, limit: int = 4) -> list[RetrievalResult]:
     session = get_session(session_id)
     query_vector = embed_text(query)
     query_terms = _meaningful_terms(query)
-    chunks = store.chunks.get(session.document_id, [])
+    chunks = store.get_chunks(session.document_id)
     scored_chunks = [
         (_retrieval_score(query_vector, query_terms, chunk), chunk)
         for chunk in chunks
@@ -262,7 +260,7 @@ def citations_from_results(results: list[RetrievalResult]) -> list[Citation]:
 
 def generate_summary(session_id: str) -> LearningSession:
     session = get_session(session_id)
-    chunks = store.chunks.get(session.document_id, [])
+    chunks = store.get_chunks(session.document_id)
     if not chunks:
         raise UserFacingError("No source chunks are available for this session.")
 
@@ -273,13 +271,13 @@ def generate_summary(session_id: str) -> LearningSession:
         for chunk in first_chunks
     ]
     session.next_recommended_action = "Review the key concepts and try a foundation question."
-    store.sessions[session_id] = session
+    store.save_session(session)
     return session
 
 
 def extract_concepts(session_id: str) -> list[Concept]:
     session = get_session(session_id)
-    chunks = store.chunks.get(session.document_id, [])
+    chunks = store.get_chunks(session.document_id)
     source = " ".join(chunk.content for chunk in chunks)
     tokens = [
         token
@@ -311,6 +309,7 @@ def extract_concepts(session_id: str) -> list[Concept]:
     ]
     session.concepts = concepts
     session.next_recommended_action = "Answer a guided question for one of the extracted concepts."
+    store.save_session(session)
     return concepts
 
 
@@ -335,6 +334,7 @@ def generate_questions(session_id: str) -> list[GuidedQuestion]:
 
     session.guided_questions = questions
     session.next_recommended_action = "Use tutor chat if any guided question feels unclear."
+    store.save_session(session)
     return questions
 
 
@@ -343,9 +343,7 @@ def answer_chat(session_id: str, message: str) -> ChatMessage:
     results = retrieve_chunks(session_id, message, limit=3)
     citations = citations_from_results(results)
 
-    store.sessions[session_id].chat_messages.append(
-        ChatMessage(message_id=str(uuid4()), session_id=session_id, role="user", content=message)
-    )
+    session.chat_messages.append(ChatMessage(message_id=str(uuid4()), session_id=session_id, role="user", content=message))
 
     if not citations:
         content = "I could not find enough support in the uploaded PDF. Try asking about a topic that appears in the source."
@@ -362,6 +360,7 @@ def answer_chat(session_id: str, message: str) -> ChatMessage:
     )
     session.chat_messages.append(assistant)
     session.next_recommended_action = "Review the cited source chunk, then answer a misconception check."
+    store.save_session(session)
     return assistant
 
 
@@ -393,10 +392,11 @@ def run_misconception_check(session_id: str, question: str, student_answer: str)
         session.concepts[0].confidence = max(0.1, session.concepts[0].confidence - 0.1)
 
     session.next_recommended_action = check.review_next
+    store.save_session(session)
     return check
 
 
-def run_eval() -> dict:
+def run_eval() -> dict[str, Any]:
     run_id = str(uuid4())
     result = {
         "run_id": run_id,
@@ -413,5 +413,16 @@ def run_eval() -> dict:
             }
         ],
     }
-    store.eval_runs[run_id] = result
+    store.save_eval_run(result)
     return result
+
+
+def list_eval_runs() -> list[dict[str, Any]]:
+    return store.list_eval_runs()
+
+
+def get_eval_run(run_id: str) -> dict[str, Any]:
+    run = store.get_eval_run(run_id)
+    if not run:
+        raise UserFacingError("Eval run was not found.")
+    return run

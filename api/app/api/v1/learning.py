@@ -71,10 +71,11 @@ async def create_document(file: UploadFile = File(...)) -> dict:
 
 @router.get("/documents/{document_id}")
 async def get_document(document_id: str) -> dict:
-    document = services.store.documents.get(document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document was not found.")
-    return {"document": document, "chunks": services.store.chunks.get(document_id, [])}
+    try:
+        document, chunks = services.get_document_with_chunks(document_id)
+        return {"document": document, "chunks": chunks}
+    except services.UserFacingError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/learning-sessions", response_model=LearningSession)
@@ -154,12 +155,12 @@ async def create_eval_run() -> dict:
 
 @router.get("/evals/runs")
 async def list_eval_runs() -> dict:
-    return {"runs": list(services.store.eval_runs.values())}
+    return {"runs": services.list_eval_runs()}
 
 
 @router.get("/evals/runs/{run_id}")
 async def get_eval_run(run_id: str) -> dict:
-    run = services.store.eval_runs.get(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Eval run was not found.")
-    return run
+    try:
+        return services.get_eval_run(run_id)
+    except services.UserFacingError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
