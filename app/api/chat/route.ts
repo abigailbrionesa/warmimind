@@ -72,6 +72,18 @@ export async function POST(req: NextRequest) {
 
 
     const relevantChunks = findRelevantChunks(userText, session.chunks);
+    if (relevantChunks.length === 0) {
+      return NextResponse.json({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        parts: [
+          {
+            type: "text",
+            text: "I could not find enough support in the uploaded PDF. Try asking about a topic that appears in the source.",
+          },
+        ],
+      });
+    }
 
     const groundingResult = await generateText({
       model: geminiModel,
@@ -84,7 +96,7 @@ RULES:
 - Do NOT add outside knowledge.
 - Do NOT add cultural examples.
 - Be clear and factual.
-- If the exact answer is not found, summarize the closest content in the PDF
+- If the exact answer is not found, say that the PDF does not provide enough support.
 `,
       prompt: `
 PDF CONTEXT:

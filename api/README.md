@@ -12,6 +12,8 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+The local Next.js app calls this API through `NEXT_PUBLIC_API_BASE_URL`, which defaults to `http://localhost:8000`. Local CORS allows `http://localhost:3000` and `http://127.0.0.1:3000`.
+
 ## Health Endpoints
 
 - `GET /health`

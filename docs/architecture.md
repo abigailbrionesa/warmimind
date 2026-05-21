@@ -12,7 +12,7 @@ components/
 lib/
 ```
 
-This preserves the working demo while v2 architecture is introduced incrementally.
+The recommended local demo now routes visible PDF upload, learning outputs, and chat through the FastAPI v2 API. Legacy Next.js AI routes remain for prototype reference only and should not be treated as the product path.
 
 ## Target Boundaries
 
@@ -28,7 +28,7 @@ docs/        Architecture, methodology, limitations, and ADRs
 
 ```text
 Student uploads PDF
-  -> web sends file to api
+  -> app/landing sends file to api
   -> api validates and stores upload
   -> api extracts text and creates chunks
   -> api embeds chunks into pgvector
@@ -38,12 +38,15 @@ Student uploads PDF
 
 ## v2 API Boundary
 
-Backend routes should be versioned under `/api/v1`. The initial skeleton exposes:
+Backend routes should be versioned under `/api/v1`. The current skeleton exposes:
 
 - `GET /health`
 - `GET /api/v1/health`
+- `POST /api/v1/documents`
+- `POST /api/v1/learning-sessions`
+- learning output, chat, misconception-check, and eval routes
 
-Planned routes are tracked in the GitHub issues and will be introduced as each module lands.
+Planned persistence, production parsing, and auth work are tracked in GitHub issues.
 
 ## Preservation Rule
 

@@ -1,6 +1,6 @@
 # WarmiMIND
 
-WarmiMIND is an experimental Next.js prototype for turning a STEM PDF into a simple AI-assisted study experience. The current public app can extract PDF text, generate a short learning summary, create questions, and provide a chat interface that tries to stay grounded in the uploaded document.
+WarmiMIND is an experimental Next.js and FastAPI prototype for turning a STEM PDF into a source-grounded study experience. The recommended local demo uploads a PDF through the v2 API, creates a learning session, generates cited learning outputs, and refuses questions when source evidence is weak.
 
 This repository is being stabilized before a v2 rebuild. The v2 direction is a source-grounded AI STEM learning workspace with persistent learning sessions, PDF chunk retrieval, citations, misconception checks, learning state, and evaluation metrics.
 
@@ -8,19 +8,19 @@ This repository is being stabilized before a v2 rebuild. The v2 direction is a s
 
 The current app includes:
 
-- PDF upload and text extraction
-- AI-generated summary and questions
+- PDF upload through the v2 FastAPI boundary
+- Source-grounded summary and questions
 - A PDF viewer
-- Session-based chat over extracted PDF text
-- Experimental translation support, including Quechua (`qu`) where provider support is available
+- Session-based chat that cites the uploaded PDF or refuses unsupported questions
+- Experimental legacy translation support, including Quechua (`qu`) where provider support is available
 
-The current prototype is useful for demonstrating the idea, but it is not yet the full v2 learning system described in the project issues.
+The current prototype is useful for demonstrating the idea, but persistence, robust PDF parsing, and production access controls are still under active rebuild.
 
 ## Important Limitations
 
 - Quechua output is experimental and has not been formally validated for language quality, dialect fit, or educational suitability.
 - Cultural examples are prompt-guided only; this project does not claim cultural authority or community validation.
-- The current chat attempts to use PDF context, but it does not yet provide robust semantic retrieval, durable citations, or measured hallucination resistance.
+- The visible v2 demo uses deterministic retrieval and refusal behavior, but it is not yet a production AI tutoring system.
 - Sessions are stored in memory for development and are not durable across server restarts.
 - Uploaded PDF retention, privacy, and storage controls are not final.
 
@@ -39,21 +39,24 @@ The current prototype is useful for demonstrating the idea, but it is not yet th
 
 - Google Gemini through the AI SDK
 - Google Cloud Translation utilities
-- `react-pdftotext` and PDF viewer libraries
-- In-memory session storage for the current prototype
+- FastAPI deterministic document processing for the visible v2 demo
+- PDF viewer libraries
+- In-memory session storage for the current prototype and v2 skeleton
 
 ## Project Structure
 
 ```text
 app/
-  landing/              Current upload and learning flow
-  viewer/               Viewer route using the current learning flow
+  page.tsx              Recommended entry point
+  landing/              Visible v2 upload and learning flow
+  workspace/            v2 workspace map and review surface
   api/
-    process/            PDF text processing, summary, questions, session creation
-    chat/               Chat over the current in-memory session
-    translate/          Translation helper endpoint
+    process/            Legacy text-processing route, not the recommended path
+    chat/               Legacy chat route with no-evidence refusal guard
+    translate/          Legacy translation helper endpoint
 components/             UI panels, PDF viewer, chat, and shared controls
 lib/                    AI model setup, translation, retrieval, session helpers
+api/                    FastAPI v2 backend for the visible demo
 public/                 Static assets
 ```
 
@@ -63,7 +66,8 @@ public/                 Static assets
 
 - Node.js 18+
 - pnpm
-- Google AI and Google Cloud credentials for AI and translation features
+- Python 3.11+ for the FastAPI backend
+- Google AI and Google Cloud credentials only for legacy AI and translation features
 
 ### Install
 
@@ -79,9 +83,18 @@ Create `.env.local` and provide the keys needed by the AI and translation integr
 GOOGLE_CLOUD_PROJECT_ID=your-project-id
 GOOGLE_GENERATIVE_AI_API_KEY=your-google-ai-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
 ### Develop
+
+```bash
+cd api
+python -m pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+In another shell:
 
 ```bash
 pnpm dev
@@ -91,7 +104,18 @@ Open `http://localhost:3000`.
 
 ## API Overview
 
-### `POST /api/process`
+### Recommended v2 API
+
+The visible demo uses the FastAPI endpoints under `/api/v1`, including:
+
+- `POST /api/v1/documents`
+- `POST /api/v1/learning-sessions`
+- `POST /api/v1/learning-sessions/{session_id}/summary`
+- `POST /api/v1/learning-sessions/{session_id}/concepts`
+- `POST /api/v1/learning-sessions/{session_id}/questions`
+- `POST /api/v1/learning-sessions/{session_id}/chat`
+
+### Legacy `POST /api/process`
 
 Processes extracted PDF text, creates an in-memory session, and returns generated learning content.
 
@@ -111,9 +135,9 @@ Response:
 }
 ```
 
-### `POST /api/chat`
+### Legacy `POST /api/chat`
 
-Streams a chat response for an existing in-memory session.
+Streams a chat response for an existing in-memory session. The recommended demo path uses the v2 FastAPI chat endpoint instead.
 
 ### `POST /api/translate`
 
@@ -135,6 +159,8 @@ See the GitHub issues for the ordered implementation plan.
 
 ## v2 Review Routes
 
+- `/` - recommended entry point
+- `/landing` - visible v2 upload and learning demo
 - `/workspace` - v2 learning workspace overview
 - `/evals` - evaluation dashboard
 - `/about` - methodology and limitations
@@ -164,7 +190,7 @@ The FastAPI skeleton lives in `api/` and exposes:
 ```bash
 pnpm lint
 pnpm exec tsc --noEmit
+pnpm test
 pnpm build
+pnpm audit --audit-level low
 ```
-
-Tests will be added as the v2 modules are introduced.

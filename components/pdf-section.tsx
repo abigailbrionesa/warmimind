@@ -1,110 +1,182 @@
-
 "use client";
 
 import { useState } from "react";
 import Image from "next/image";
-import pdfToText from "react-pdftotext";
+import { Upload } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { createBackendApiUrl, readBackendJson } from "@/lib/backend-api";
+
+type Citation = {
+  chunk_id: string;
+  page: number | null;
+  snippet: string;
+};
+
+type DocumentResponse = {
+  document: {
+    document_id: string;
+    file_name: string;
+  };
+};
+
+type SessionResponse = {
+  session_id: string;
+  summary?: string | null;
+  summary_citations?: Citation[];
+  next_recommended_action?: string;
+};
+
+type ConceptsResponse = {
+  concepts: Array<{
+    name: string;
+    explanation: string;
+    citations: Citation[];
+  }>;
+};
+
+type QuestionsResponse = {
+  questions: Array<{
+    text: string;
+    difficulty: string;
+    evidence: Citation[];
+  }>;
+};
+
+export type ProcessedLearningSession = {
+  documentId: string;
+  fileName: string;
+  sessionId: string;
+  summary: string;
+  summaryCitations: Citation[];
+  concepts: ConceptsResponse["concepts"];
+  questions: QuestionsResponse["questions"];
+  nextRecommendedAction: string;
+};
 
 type PdfSectionProps = {
-  onProcessed: (
-    data: { summaryQu: string; questionsQu: string[]; sessionId: string },
-    fileUrl: string
-  ) => void;
+  onProcessed: (data: ProcessedLearningSession, fileUrl: string) => void;
 };
+
+async function postJson<T>(url: string, body?: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  return readBackendJson<T>(response);
+}
 
 export default function PdfSection({ onProcessed }: PdfSectionProps) {
   const [loading, setLoading] = useState(false);
-  const [pdfFile, setPdfFile] = useState<string | null>(null);
+  const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleUpload(file: File) {
     setLoading(true);
+    setError(null);
+    setSelectedName(file.name);
     const fileUrl = URL.createObjectURL(file);
 
-    setPdfFile(URL.createObjectURL(file));
-
     try {
-      const extractedText = await pdfToText(file);
-      console.log("Extracted text:", extractedText);
+      const formData = new FormData();
+      formData.append("file", file);
 
-      const res = await fetch("/api/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: extractedText }),
-      });
+      const documentPayload = await readBackendJson<DocumentResponse>(
+        await fetch(createBackendApiUrl("/api/v1/documents"), {
+          method: "POST",
+          body: formData,
+        })
+      );
 
-      const data = await res.json();
-      console.log("Process API response:", data);
+      const session = await postJson<SessionResponse>(
+        createBackendApiUrl("/api/v1/learning-sessions"),
+        { document_id: documentPayload.document.document_id }
+      );
+      const summary = await postJson<SessionResponse>(
+        createBackendApiUrl(`/api/v1/learning-sessions/${session.session_id}/summary`)
+      );
+      const concepts = await postJson<ConceptsResponse>(
+        createBackendApiUrl(`/api/v1/learning-sessions/${session.session_id}/concepts`)
+      );
+      const questions = await postJson<QuestionsResponse>(
+        createBackendApiUrl(`/api/v1/learning-sessions/${session.session_id}/questions`)
+      );
 
       onProcessed(
         {
-          summaryQu: data.summaryQu,
-          questionsQu: data.questionsQu,
-          sessionId: data.sessionId,
+          documentId: documentPayload.document.document_id,
+          fileName: documentPayload.document.file_name,
+          sessionId: session.session_id,
+          summary: summary.summary ?? "",
+          summaryCitations: summary.summary_citations ?? [],
+          concepts: concepts.concepts,
+          questions: questions.questions,
+          nextRecommendedAction:
+            summary.next_recommended_action ??
+            "Ask a source-grounded question or try a guided question.",
         },
         fileUrl
       );
     } catch (err) {
-      console.error("PDF processing failed:", err);
+      URL.revokeObjectURL(fileUrl);
+      setSelectedName(null);
+      setError(err instanceof Error ? err.message : "PDF processing failed.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <section className="p-6 flex flex-col gap-4 border rounded-lg bg-card text-card-foreground shadow-md">
-<div className="flex justify-center my-4 bg-amber-950 py-5">
-  <Image
-    src="/warmimind.png"
-    alt="STEM example"
-    width={300}
-    height={200}
-  />
-</div>
-      {!pdfFile && (
-        <label
-          htmlFor="pdf-upload"
-          className="cursor-pointer border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/50 transition-colors bg-background"
-        >
-          <span className="block text-muted-foreground">
-            PDF ruwachiy (drag & drop kachay / click kachay)
-          </span>
-          <input
-            id="pdf-upload"
-            type="file"
-            accept="application/pdf"
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files) handleUpload(e.target.files[0]);
-            }}
-          />
-        </label>
+    <section className="flex max-w-xl flex-col gap-4 border bg-card p-6 text-card-foreground shadow-md">
+      <div className="flex justify-center bg-secondary py-5">
+        <Image src="/warmimind.png" alt="WarmiMIND STEM learning" width={300} height={200} />
+      </div>
+
+      <label
+        htmlFor="pdf-upload"
+        className="cursor-pointer border-2 border-dashed border-border bg-background p-5 text-center transition-colors hover:border-primary/50"
+      >
+        <Upload className="mx-auto mb-3 h-6 w-6 text-primary" />
+        <span className="block font-medium">Upload one STEM PDF</span>
+        <span className="mt-1 block text-sm text-muted-foreground">
+          Files are sent to the v2 API for validation, chunking, and cited learning outputs.
+        </span>
+        <input
+          id="pdf-upload"
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          disabled={loading}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void handleUpload(file);
+            event.currentTarget.value = "";
+          }}
+        />
+      </label>
+
+      {selectedName && (
+        <p className="text-sm text-muted-foreground">Selected: {selectedName}</p>
       )}
 
       {loading && (
-        <div className="flex items-center gap-2 text-[var(--color-muted-foreground)] text-sm">
-          <span className="animate-pulse">Yachachkan…</span>
-          <svg className="w-4 h-4 animate-spin text-[var(--color-primary)]" viewBox="0 0 24 24">
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-              fill="none"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
-            />
-          </svg>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+          Processing through the v2 learning API...
         </div>
       )}
 
+      {error && (
+        <div className="border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
 
+      <Button disabled={loading} asChild variant="outline">
+        <label htmlFor="pdf-upload">Choose PDF</label>
+      </Button>
     </section>
-
-
   );
 }
