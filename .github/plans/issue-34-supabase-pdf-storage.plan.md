@@ -73,6 +73,13 @@ Add bucket and signed URL TTL settings beside Supabase repository config.
 
 ## Tasks
 
+### Task 0: Gate Signed URL Issuance
+
+- **Files**: `api/app/core/config.py`, `api/app/services.py`, `.env.example`, docs
+- **Action**: UPDATE
+- **Implement**: Add `ENABLE_PDF_SIGNED_URLS=false` by default and return a stable unavailable response unless explicitly enabled.
+- **Validate**: `pnpm test`
+
 ### Task 1: Add Storage Metadata and Repository Methods
 
 - **Files**: `api/app/models.py`, `api/app/repositories.py`
@@ -113,6 +120,6 @@ pnpm audit --audit-level low
 
 - [x] Supabase repository uploads raw PDF bytes to the configured bucket when configured.
 - [x] Document metadata can include a storage path.
-- [x] Signed URL endpoint returns a signed URL when storage is configured and a stable unavailable response otherwise.
+- [x] Signed URL endpoint returns a signed URL only when storage is configured and signed URL issuance is explicitly enabled.
 - [x] Local tests run without Supabase credentials and without retaining raw PDF bytes.
 - [x] Tests and validation pass.

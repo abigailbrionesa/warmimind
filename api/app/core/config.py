@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     supabase_service_role_key: str | None = None
     supabase_pdf_bucket: str = "warmimind-pdfs"
     signed_url_ttl_seconds: int = 300
+    enable_pdf_signed_urls: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

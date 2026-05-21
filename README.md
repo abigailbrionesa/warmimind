@@ -89,13 +89,14 @@ SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_PDF_BUCKET=warmimind-pdfs
 SIGNED_URL_TTL_SECONDS=300
+ENABLE_PDF_SIGNED_URLS=false
 ```
 
 Set `REPOSITORY_BACKEND=supabase` with `SUPABASE_URL` and a server-only
 `SUPABASE_SERVICE_ROLE_KEY` to persist v2 app data in Supabase. The default
 `memory` backend is intended for local validation and tests. In Supabase mode,
 uploaded PDF bytes are written to `SUPABASE_PDF_BUCKET`, and signed URL
-responses use `SIGNED_URL_TTL_SECONDS`.
+responses use `SIGNED_URL_TTL_SECONDS` only when `ENABLE_PDF_SIGNED_URLS=true`.
 
 ### Develop
 
@@ -208,8 +209,9 @@ learning outputs, misconception checks, and eval runs to the Supabase tables in
 In Supabase repository mode, raw uploaded PDF bytes are stored in the configured
 Supabase Storage bucket and document metadata keeps the storage path. The API can
 return a short-lived signed URL from
-`GET /api/v1/documents/{document_id}/signed-url`. In local memory mode, raw PDF
-bytes are not retained and the signed URL endpoint returns `available: false`.
+`GET /api/v1/documents/{document_id}/signed-url` only when
+`ENABLE_PDF_SIGNED_URLS=true`. In local memory mode, raw PDF bytes are not
+retained and the signed URL endpoint returns `available: false`.
 Rich PDF viewer highlighting remains future storage work.
 
 ## Validation

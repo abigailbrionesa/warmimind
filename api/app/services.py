@@ -212,6 +212,14 @@ def get_document_signed_url(document_id: str) -> dict[str, Any]:
     document = store.get_document(document_id)
     if not document:
         raise UserFacingError("Document was not found.")
+    if not settings.enable_pdf_signed_urls:
+        return {
+            "document_id": document_id,
+            "available": False,
+            "signed_url": None,
+            "expires_in_seconds": None,
+            "reason": "PDF signed URL issuance is disabled.",
+        }
     signed_url = store.create_document_signed_url(document_id, settings.signed_url_ttl_seconds)
     return {
         "document_id": document_id,
