@@ -55,6 +55,14 @@ class VisibleFlowContractTest(unittest.TestCase):
         self.assertIn("service-role-only", migration)
         self.assertIn("SUPABASE_SERVICE_ROLE_KEY", deployment)
 
+    def test_eval_dashboard_uses_live_v2_eval_api(self) -> None:
+        evals_page = self.read("app/evals/page.tsx")
+
+        self.assertIn('createBackendApiUrl("/api/v1/evals/runs")', evals_page)
+        self.assertIn("Run eval", evals_page)
+        self.assertIn("setRuns", evals_page)
+        self.assertNotIn("Placeholder deterministic runner", evals_page)
+
 
 if __name__ == "__main__":
     unittest.main()

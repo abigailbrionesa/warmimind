@@ -1,6 +1,9 @@
 import hashlib
+import json
 import math
 import re
+from pathlib import Path
+from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
@@ -24,6 +27,13 @@ MAX_FILE_BYTES = 12 * 1024 * 1024
 CHUNK_CHARS = 900
 EMBEDDING_DIMENSIONS = 16
 MIN_RETRIEVAL_SCORE = 0.18
+SAMPLE_EVAL_DOCUMENT_ID = "00000000-0000-4000-8000-000000000001"
+SAMPLE_EVAL_CHUNK_ID = "sample-document-chunk-1"
+SAMPLE_EVAL_TEXT = (
+    "Force changes motion. Energy describes the ability to do work. "
+    "Motion can be measured with velocity. Evidence from a source should support each answer."
+)
+SAMPLE_EVAL_PATH = Path(__file__).resolve().parents[2] / "evals" / "sample_stem_eval.json"
 STOPWORDS = {
     "about",
     "after",
@@ -397,21 +407,79 @@ def run_misconception_check(session_id: str, question: str, student_answer: str)
 
 
 def run_eval() -> dict[str, Any]:
+    started = perf_counter()
+    eval_spec = _load_sample_eval_spec()
+    session = _create_sample_eval_session()
+    questions = eval_spec.get("questions", [])
+    case_results: list[dict[str, Any]] = []
+    grounded_total = 0
+    retrieval_hits = 0
+    citation_hits = 0
+    unsupported_total = 0
+    refusal_hits = 0
+
+    generated_questions = generate_questions(session.session_id)
+    guided_question_quality = (
+        "pass"
+        if generated_questions
+        and all(question.difficulty and question.evidence for question in generated_questions)
+        else "fail"
+    )
+
+    for item in questions:
+        case_id = item["id"]
+        question = item["question"]
+        expected_chunk_ids = set(item.get("expected_chunk_ids", []))
+        unsupported = bool(item.get("unsupported", False))
+        retrieved = retrieve_chunks(session.session_id, question)
+        answer = answer_chat(session.session_id, question)
+        retrieved_ids = {result.chunk_id for result in retrieved}
+        citation_ids = {citation.chunk_id for citation in answer.citations}
+
+        if unsupported:
+            unsupported_total += 1
+            passed = not answer.citations and "could not find enough support" in answer.content
+            refusal_hits += 1 if passed else 0
+            notes = (
+                "Unsupported question refused without citations."
+                if passed
+                else "Unsupported question was not refused cleanly."
+            )
+        else:
+            grounded_total += 1
+            retrieval_passed = bool(expected_chunk_ids & retrieved_ids)
+            citation_passed = bool(expected_chunk_ids & citation_ids)
+            retrieval_hits += 1 if retrieval_passed else 0
+            citation_hits += 1 if citation_passed else 0
+            passed = retrieval_passed and citation_passed
+            notes = (
+                "Expected source chunk was retrieved and cited."
+                if passed
+                else "Expected source chunk was missing from retrieval or citations."
+            )
+
+        case_results.append(
+            {
+                "case_id": case_id,
+                "status": "pass" if passed else "fail",
+                "notes": notes,
+                "question": question,
+                "expected_chunk_ids": sorted(expected_chunk_ids),
+                "retrieved_chunk_ids": sorted(retrieved_ids),
+                "citation_chunk_ids": sorted(citation_ids),
+            }
+        )
+
     run_id = str(uuid4())
     result = {
         "run_id": run_id,
-        "retrieval_hit_rate": 1.0,
-        "citation_coverage": 1.0,
-        "refusal_pass_rate": 1.0,
-        "guided_question_quality": "pass",
-        "latency_ms": 0,
-        "results": [
-            {
-                "case_id": "sample-unsupported-question",
-                "status": "pass",
-                "notes": "Unsupported questions are expected to refuse when no source evidence is retrieved.",
-            }
-        ],
+        "eval_name": eval_spec.get("name", "sample-stem-pdf-eval"),
+        "retrieval_hit_rate": _ratio(retrieval_hits, grounded_total),
+        "citation_coverage": _ratio(citation_hits, grounded_total),
+        "refusal_pass_rate": _ratio(refusal_hits, unsupported_total),
+        "guided_question_quality": guided_question_quality,
+        "latency_ms": round((perf_counter() - started) * 1000),
+        "results": case_results,
     }
     store.save_eval_run(result)
     return result
@@ -426,3 +494,43 @@ def get_eval_run(run_id: str) -> dict[str, Any]:
     if not run:
         raise UserFacingError("Eval run was not found.")
     return run
+
+
+def _load_sample_eval_spec() -> dict[str, Any]:
+    with SAMPLE_EVAL_PATH.open(encoding="utf-8") as file:
+        return json.load(file)
+
+
+def _create_sample_eval_session() -> LearningSession:
+    document = DocumentMetadata(
+        document_id=SAMPLE_EVAL_DOCUMENT_ID,
+        title="Sample STEM Eval",
+        file_name="sample-stem-eval.pdf",
+        content_type="application/pdf",
+        size_bytes=len(SAMPLE_EVAL_TEXT.encode("utf-8")),
+        detected_language="en",
+    )
+    chunk = DocumentChunk(
+        chunk_id=SAMPLE_EVAL_CHUNK_ID,
+        document_id=SAMPLE_EVAL_DOCUMENT_ID,
+        chunk_index=0,
+        content=SAMPLE_EVAL_TEXT,
+        page=1,
+        char_count=len(SAMPLE_EVAL_TEXT),
+        embedding=embed_text(SAMPLE_EVAL_TEXT),
+    )
+    store.save_document(document, SAMPLE_EVAL_TEXT, [chunk])
+    session = LearningSession(
+        session_id=str(uuid4()),
+        document_id=SAMPLE_EVAL_DOCUMENT_ID,
+        status=SessionStatus.processed,
+    )
+    store.save_session(session)
+    extract_concepts(session.session_id)
+    return get_session(session.session_id)
+
+
+def _ratio(numerator: int, denominator: int) -> float:
+    if denominator == 0:
+        return 1.0
+    return round(numerator / denominator, 4)
