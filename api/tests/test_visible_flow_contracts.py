@@ -21,6 +21,7 @@ class VisibleFlowContractTest(unittest.TestCase):
 
         self.assertIn('createBackendApiUrl("/api/v1/documents")', upload)
         self.assertIn("/api/v1/learning-sessions", upload)
+        self.assertIn("chunks: documentPayload.chunks", upload)
         self.assertNotIn("react-pdftotext", upload)
         self.assertNotIn('fetch("/api/process"', upload)
         self.assertNotIn("console.log", upload)
@@ -39,6 +40,14 @@ class VisibleFlowContractTest(unittest.TestCase):
         self.assertIn("Misconception check", chat_panel)
         self.assertIn("What looks supported", chat_panel)
         self.assertIn("What to strengthen", chat_panel)
+
+    def test_visible_sources_tab_renders_extracted_chunks(self) -> None:
+        chat_panel = self.read("components/chat-panel.tsx")
+
+        self.assertIn("Extracted source chunks", chat_panel)
+        self.assertIn("learningSession.chunks.map", chat_panel)
+        self.assertIn("chunk.char_count", chat_panel)
+        self.assertIn("chunk.content", chat_panel)
 
     def test_legacy_chat_has_no_evidence_refusal_guard(self) -> None:
         legacy_chat = self.read("app/api/chat/route.ts")
