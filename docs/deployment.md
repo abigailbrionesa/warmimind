@@ -1,6 +1,6 @@
 # Deployment Readiness
 
-WarmiMIND v2 is not ready for public production uploads until the persistence and access-control layer is finished.
+WarmiMIND v2 is not ready for public production uploads until the persistence, storage, and access-control layers are finished.
 
 ## Required Before Production
 
@@ -14,5 +14,7 @@ WarmiMIND v2 is not ready for public production uploads until the persistence an
 ## Current Local Posture
 
 - The visible Next.js demo calls the FastAPI v2 backend directly through `NEXT_PUBLIC_API_BASE_URL`.
-- The FastAPI service uses deterministic in-memory storage for local validation.
+- The FastAPI service defaults to deterministic in-memory storage for local validation.
+- Set `REPOSITORY_BACKEND=supabase`, `SUPABASE_URL`, and server-only `SUPABASE_SERVICE_ROLE_KEY` to persist document metadata, extracted text, chunks, sessions, learning outputs, misconception checks, and eval runs.
 - `migrations/0004_v2_access_control_posture.sql` enables RLS so new tables are not accidentally treated as public-ready.
+- Raw uploaded PDF bytes are still not stored in Supabase Storage; signed URLs and PDF retention controls remain a separate production-readiness step.
