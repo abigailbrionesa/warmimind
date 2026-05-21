@@ -168,6 +168,16 @@ class LearningServicesTest(unittest.TestCase):
     def test_eval_run_is_stored(self) -> None:
         run = services.run_eval()
         self.assertEqual(services.get_eval_run(run["run_id"]), run)
+        self.assertEqual(services.list_eval_runs(), [run])
+        self.assertEqual(run["eval_name"], "sample-stem-pdf-eval")
+        self.assertEqual(run["retrieval_hit_rate"], 1.0)
+        self.assertEqual(run["citation_coverage"], 1.0)
+        self.assertEqual(run["refusal_pass_rate"], 1.0)
+        self.assertEqual(run["guided_question_quality"], "pass")
+        self.assertEqual(
+            [result["case_id"] for result in run["results"]],
+            ["energy-grounded", "unsupported-history"],
+        )
 
 
 class FakeUpload:
