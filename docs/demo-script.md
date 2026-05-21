@@ -10,7 +10,7 @@
 
 ## 0:45 - 1:15: Learning Workspace
 
-"The workspace organizes the session into summary, key concepts, guided questions, tutor chat, misconception checks, and next action. Each generated output is designed to point back to source chunks."
+"The workspace organizes the session into source chunks, summary, key concepts, guided questions, tutor chat, misconception checks, and next action. Each generated output is designed to point back to source chunks."
 
 ## 1:15 - 1:40: Misconception And Progress
 

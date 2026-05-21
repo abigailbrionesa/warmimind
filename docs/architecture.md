@@ -1,10 +1,10 @@
 # WarmiMIND v2 Architecture
 
-WarmiMIND v2 is planned as a source-grounded AI STEM learning workspace over uploaded PDFs.
+WarmiMIND v2 is a source-grounded AI STEM learning workspace over uploaded PDFs.
 
-## Current Transition State
+## Current MVP State
 
-The current public Next.js prototype remains at the repository root:
+The current public Next.js app remains at the repository root:
 
 ```text
 app/
@@ -12,7 +12,7 @@ components/
 lib/
 ```
 
-The recommended local demo now routes visible PDF upload, learning outputs, and chat through the FastAPI v2 API. Legacy Next.js AI routes remain for prototype reference only and should not be treated as the product path.
+The recommended local demo routes visible PDF upload, source chunks, learning outputs, misconception checks, progress state, evals, and tutor chat through the FastAPI v2 API. Legacy Next.js AI routes remain for prototype reference only and should not be treated as the product path.
 
 ## Target Boundaries
 
@@ -31,22 +31,24 @@ Student uploads PDF
   -> app/landing sends file to api
   -> api validates and stores upload
   -> api extracts text and creates chunks
-  -> api embeds chunks into pgvector
+  -> api prepares chunks for retrieval
   -> api creates a learning session
   -> web displays summary, concepts, questions, chat, checks, and next action
 ```
 
 ## v2 API Boundary
 
-Backend routes should be versioned under `/api/v1`. The current skeleton exposes:
+Backend routes should be versioned under `/api/v1`. The current v2 service exposes:
 
 - `GET /health`
 - `GET /api/v1/health`
 - `POST /api/v1/documents`
+- `GET /api/v1/documents/{document_id}`
+- `GET /api/v1/documents/{document_id}/signed-url`
 - `POST /api/v1/learning-sessions`
-- learning output, chat, misconception-check, and eval routes
+- retrieval, learning output, chat, misconception-check, progress, and eval routes
 
-Planned persistence, production parsing, and auth work are tracked in GitHub issues.
+The backend defaults to in-memory repositories for local validation. Supabase repository mode can persist document metadata, extracted text, chunks, sessions, outputs, misconception checks, eval runs, and raw PDF bytes. Signed URL issuance is available only when explicitly enabled after access-control review.
 
 ## Preservation Rule
 

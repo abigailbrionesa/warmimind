@@ -1,8 +1,8 @@
 # Limitations
 
-WarmiMIND v2 is under active rebuild.
+WarmiMIND v2 is an MVP-grade local/demo system under active development.
 
-- The current FastAPI backend is a deterministic skeleton, not a production AI tutoring system.
+- The current FastAPI backend uses deterministic retrieval and generation logic for repeatable validation, not production tutoring intelligence.
 - PDF text extraction supports text-based PDFs through `pypdf`; scanned/image-only PDFs require a future OCR pass.
 - The backend defaults to in-memory storage for local validation, but can persist app data through the Supabase repository when configured.
 - Supabase RLS is enabled in the access-control posture migration, but authenticated ownership policies are not complete.

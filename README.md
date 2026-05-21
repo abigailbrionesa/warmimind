@@ -1,28 +1,33 @@
 # WarmiMIND
 
-WarmiMIND is an experimental Next.js and FastAPI prototype for turning a STEM PDF into a source-grounded study experience. The recommended local demo uploads a PDF through the v2 API, creates a learning session, generates cited learning outputs, and refuses questions when source evidence is weak.
+WarmiMIND is a source-grounded AI STEM learning workspace. The visible v2 flow turns one text-based STEM PDF into inspectable source chunks, cited summaries, key concepts, guided questions, tutor chat, misconception feedback, learning state, next recommended actions, and evaluation metrics.
 
-This repository is being stabilized before a v2 rebuild. The v2 direction is a source-grounded AI STEM learning workspace with persistent learning sessions, PDF chunk retrieval, citations, misconception checks, learning state, and evaluation metrics.
+The current implementation is an MVP-grade local/demo system, not a public production tutoring service. It uses deterministic retrieval and generation logic for repeatable validation, supports optional Supabase persistence and raw PDF storage, and keeps signed PDF URLs disabled by default until ownership and retention policies are complete.
 
-## Current Prototype
+## Current v2 MVP
 
 The current app includes:
 
-- PDF upload through the v2 FastAPI boundary
-- Source-grounded summary and questions
-- A PDF viewer
-- Session-based chat that cites the uploaded PDF or refuses unsupported questions
+- PDF upload through the FastAPI v2 boundary
+- Text extraction and page-aware source chunk inspection
+- Source-grounded summaries, key concepts, and guided questions
+- Native PDF preview for the uploaded document
+- Session-based tutor chat that cites the uploaded PDF or refuses unsupported questions
+- Misconception checks, weak-concept tracking, and next recommended actions
+- Live seeded evaluation dashboard for retrieval, citation, refusal, quality, and latency metrics
+- Optional Supabase repository mode for app data and raw PDF storage
 - Experimental legacy translation support, including Quechua (`qu`) where provider support is available
 
-The current prototype is useful for demonstrating the idea, but persistence, robust PDF parsing, and production access controls are still under active rebuild.
+The core user flows have been smoke-tested with Playwright in development and production builds.
 
 ## Important Limitations
 
 - Quechua output is experimental and has not been formally validated for language quality, dialect fit, or educational suitability.
 - Cultural examples are prompt-guided only; this project does not claim cultural authority or community validation.
-- The visible v2 demo uses deterministic retrieval and refusal behavior, but it is not yet a production AI tutoring system.
-- Sessions are stored in memory for development and are not durable across server restarts.
-- Uploaded PDF retention, privacy, and storage controls are not final.
+- The visible v2 demo uses deterministic retrieval and refusal behavior, so it is not yet a production AI tutoring system.
+- The default `memory` repository is for development and is not durable across server restarts.
+- Supabase repository mode can persist app data and raw uploaded PDFs, but authenticated ownership, retention, and privacy policies are not final.
+- Signed PDF URLs are disabled by default and should stay disabled until production access controls are complete.
 
 ## Tech Stack
 
@@ -40,8 +45,8 @@ The current prototype is useful for demonstrating the idea, but persistence, rob
 - Google Gemini through the AI SDK
 - Google Cloud Translation utilities
 - FastAPI deterministic document processing for the visible v2 demo
-- PDF viewer libraries
-- In-memory session storage for the current prototype and v2 skeleton
+- Native browser PDF preview
+- In-memory repository by default, with optional Supabase Postgres and Storage persistence
 
 ## Project Structure
 
@@ -155,9 +160,9 @@ Streams a chat response for an existing in-memory session. The recommended demo 
 
 Translates supplied text through the configured Google Cloud Translation project.
 
-## v2 Rebuild Direction
+## Product Direction
 
-WarmiMIND v2 is planned as a source-grounded AI STEM learning workspace rather than a generic PDF summarizer. The target architecture is:
+WarmiMIND v2 is a source-grounded AI STEM learning workspace rather than a generic PDF summarizer. The target architecture is:
 
 - Next.js learning workspace frontend
 - FastAPI backend for ingestion, retrieval, tutoring, learning state, and evals
@@ -179,7 +184,7 @@ See the GitHub issues for the ordered implementation plan.
 
 ## v2 Backend Endpoints
 
-The FastAPI skeleton lives in `api/` and exposes:
+The FastAPI v2 service lives in `api/` and exposes:
 
 - `GET /health`
 - `GET /api/v1/health`
@@ -223,3 +228,5 @@ pnpm test
 pnpm build
 pnpm audit --audit-level low
 ```
+
+The current visible upload, workspace, tutor chat, misconception, progress, eval, and default-disabled signed URL flows have also been validated with Playwright smoke tests.

@@ -1,13 +1,13 @@
 # Deployment Readiness
 
-WarmiMIND v2 is not ready for public production uploads until the persistence, storage, and access-control layers are finished.
+WarmiMIND v2 is not ready for public production uploads until authenticated ownership, PDF retention, privacy, and access-control policies are finished.
 
 ## Required Before Production
 
 - Keep `SUPABASE_SERVICE_ROLE_KEY` server-only.
 - Enable RLS for all document, chunk, session, chat, and eval tables.
 - Add authenticated ownership columns and policies before exposing Supabase data to browser clients.
-- Configure Supabase Storage policies for uploaded PDFs.
+- Configure Supabase Storage policies and retention rules for uploaded PDFs.
 - Configure a private `SUPABASE_PDF_BUCKET`, keep `ENABLE_PDF_SIGNED_URLS=false` until ownership checks exist, and keep signed URL issuance server-side.
 - Keep `NEXT_PUBLIC_API_BASE_URL` pointed at the FastAPI backend used by the visible demo.
 - Do not log full extracted PDF text, chat messages, or generated payloads in production.
