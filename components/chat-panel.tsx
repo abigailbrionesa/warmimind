@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BotIcon, Copy, FileText, Flower, List, Send, Target } from "lucide-react";
+import { BotIcon, Copy, FileSearch, FileText, Flower, List, Send, Target } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,6 +162,9 @@ export default function ChatPanel({ learningSession }: ChatPanelProps) {
           <TabsTrigger value="summary" className="flex items-center gap-2">
             <FileText className="h-4 w-4" /> Summary
           </TabsTrigger>
+          <TabsTrigger value="sources" className="flex items-center gap-2">
+            <FileSearch className="h-4 w-4" /> Sources
+          </TabsTrigger>
           <TabsTrigger value="questions" className="flex items-center gap-2">
             <List className="h-4 w-4" /> Questions
           </TabsTrigger>
@@ -263,6 +266,30 @@ export default function ChatPanel({ learningSession }: ChatPanelProps) {
                 ))}
               </div>
             )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="sources" className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold">Extracted source chunks</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Inspect the text WarmiMIND uses for retrieval, citations, and learning outputs.
+              </p>
+            </div>
+
+            <div className="grid gap-3">
+              {learningSession.chunks.map((chunk) => (
+                <article key={chunk.chunk_id} className="border bg-card-foreground/5 p-3 text-sm">
+                  <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="font-mono">{chunk.chunk_id}</span>
+                    <span>Page {chunk.page ?? "?"}</span>
+                    <span>{chunk.char_count} chars</span>
+                  </div>
+                  <p className="leading-6 whitespace-pre-wrap">{chunk.content}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </TabsContent>
 

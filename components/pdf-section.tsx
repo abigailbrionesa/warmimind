@@ -13,11 +13,21 @@ type Citation = {
   snippet: string;
 };
 
+export type SourceChunk = {
+  chunk_id: string;
+  document_id: string;
+  chunk_index: number;
+  content: string;
+  page: number | null;
+  char_count: number;
+};
+
 type DocumentResponse = {
   document: {
     document_id: string;
     file_name: string;
   };
+  chunks: SourceChunk[];
 };
 
 type SessionResponse = {
@@ -49,6 +59,7 @@ export type ProcessedLearningSession = {
   sessionId: string;
   summary: string;
   summaryCitations: Citation[];
+  chunks: SourceChunk[];
   concepts: ConceptsResponse["concepts"];
   questions: QuestionsResponse["questions"];
   nextRecommendedAction: string;
@@ -111,6 +122,7 @@ export default function PdfSection({ onProcessed }: PdfSectionProps) {
           sessionId: session.session_id,
           summary: summary.summary ?? "",
           summaryCitations: summary.summary_citations ?? [],
+          chunks: documentPayload.chunks,
           concepts: concepts.concepts,
           questions: questions.questions,
           nextRecommendedAction:
