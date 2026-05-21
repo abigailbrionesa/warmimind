@@ -2,7 +2,6 @@
 
 import SummaryPanel from "./summary-panel";
 import QuestionsPanel from "./questions-panel";
-import ChatPanel from "./chat-panel";
 
 type LearningSectionProps = {
   summaryQu: string | null;
@@ -32,7 +31,6 @@ export default function LearningSection({
     <section className="flex flex-col gap-6">
       <SummaryPanel summary={summaryQu} />
       <QuestionsPanel questions={questionsQu} />
-      <ChatPanel sessionId={sessionId} />
     </section>
   );
 }

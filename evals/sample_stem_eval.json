@@ -1,0 +1,24 @@
+{
+  "name": "sample-stem-pdf-eval",
+  "questions": [
+    {
+      "id": "energy-grounded",
+      "question": "What does the source say about energy?",
+      "expected_chunk_ids": ["sample-document-chunk-1"],
+      "unsupported": false
+    },
+    {
+      "id": "unsupported-history",
+      "question": "What was the author's childhood like?",
+      "expected_chunk_ids": [],
+      "unsupported": true
+    }
+  ],
+  "metrics": [
+    "retrieval_hit_rate",
+    "citation_coverage",
+    "refusal_pass_rate",
+    "guided_question_quality",
+    "latency"
+  ]
+}

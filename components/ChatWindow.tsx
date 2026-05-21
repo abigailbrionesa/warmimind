@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useEffect, useState, useMemo } from "react";
-import { useChat, UIMessage } from "@ai-sdk/react";
+import { useRef, useEffect, useState } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, type UIMessage } from "ai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,15 +10,11 @@ import { Send, RefreshCw, Bot } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 
-interface ChatWindowProps {
-  onUploadRequest?: () => void;
-  onSettingsRequest?: () => void;
-}
-
-export default function ChatWindow({ onUploadRequest, onSettingsRequest }: ChatWindowProps) {
-  
+export default function ChatWindow() {
   const { messages, status, sendMessage } = useChat({
-    api: "/api/chat",
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+    }),
     onError: () => {
       console.error("Error sending message or rate limited");
     },
@@ -35,13 +32,12 @@ export default function ChatWindow({ onUploadRequest, onSettingsRequest }: ChatW
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    sendMessage({ text: input });
+    sendMessage({
+      role: "user",
+      parts: [{ type: "text", text: input }],
+    });
     setInput("");
   };
-
-  const lastUserMessage: UIMessage | undefined = messages
-    .filter((m) => m.role === "user")
-    .slice(-1)[0];
 
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto">

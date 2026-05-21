@@ -1,55 +1,49 @@
 "use client";
 
 import { useState } from "react";
-import PdfSection from "@/components/pdf-section";
+
 import ChatPanel from "@/components/chat-panel";
 import PDFViewer from "@/components/PDFViewer";
+import PdfSection, { type ProcessedLearningSession } from "@/components/pdf-section";
 
 export default function Landing() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [summaryQu, setSummaryQu] = useState<string | null>(null);
-  const [questionsQu, setQuestionsQu] = useState<string[]>([]);
+  const [learningSession, setLearningSession] = useState<ProcessedLearningSession | null>(null);
   const [pdfFile, setPdfFile] = useState<string | null>(null);
 
   return (
-    <main className="flex-col flex items-center justify-center gap-4 h-screen w-screen p-4 bg-primary">
-       
-             {!pdfFile && !sessionId && (
-
-        <PdfSection
-          onProcessed={(data, fileUrl) => {
-            setSessionId(data.sessionId);
-            setSummaryQu(data.summaryQu);
-            setQuestionsQu(data.questionsQu);
-            setPdfFile(fileUrl);
-          }}
-        />
-        )}
-      {pdfFile && sessionId && (
-        <div className="flex gap-4 bg-primary h-full w-full overflow-y-auto">
-
-          {pdfFile && (
-            <div className="basis-2/5 overflow-y-auto h-full border rounded-lg shadow-md">
-              <PDFViewer file={pdfFile} />
-            </div>
-          )}
-
-          {sessionId && (
-            <div className="flex basis-3/5 h-full">
-              <ChatPanel
-                sessionId={sessionId}
-                summaryQu={summaryQu}
-                questionsQu={questionsQu}
-              />
-            </div>
-          )}
-
-
+    <main className="flex min-h-screen w-screen flex-col items-center justify-center gap-4 bg-background p-4 text-foreground">
+      {!pdfFile && !learningSession && (
+        <div className="flex w-full max-w-3xl flex-col items-center gap-5 text-center">
+          <div className="space-y-3">
+            <p className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              WarmiMIND v2 demo
+            </p>
+            <h1 className="text-4xl font-semibold">Start with one source PDF.</h1>
+            <p className="mx-auto max-w-2xl text-muted-foreground">
+              The visible demo now uses the v2 FastAPI backend for upload validation,
+              document chunking, cited learning outputs, and unsupported-question refusal.
+            </p>
+          </div>
+          <PdfSection
+            onProcessed={(data, fileUrl) => {
+              setLearningSession(data);
+              setPdfFile(fileUrl);
+            }}
+          />
         </div>
-
       )}
 
-    </main>
+      {pdfFile && learningSession && (
+        <div className="flex h-[calc(100vh-2rem)] w-full gap-4 overflow-hidden">
+          <div className="hidden h-full basis-2/5 overflow-y-auto border shadow-md lg:block">
+            <PDFViewer file={pdfFile} />
+          </div>
 
+          <div className="flex h-full flex-1">
+            <ChatPanel learningSession={learningSession} />
+          </div>
+        </div>
+      )}
+    </main>
   );
 }
