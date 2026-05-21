@@ -19,11 +19,8 @@ const PDFViewer = dynamic(
       useEffect(() => {
         function updateWidth() {
           if (containerRef.current) {
-            const containerHeight = containerRef.current.offsetHeight;
             const containerWidth = containerRef.current.offsetWidth;
-
-            // Optional: scale width proportionally to height
-            setPageWidth(containerWidth); // Keep full width, let height scroll
+            setPageWidth(containerWidth);
           }
         }
         updateWidth();

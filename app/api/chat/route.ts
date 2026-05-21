@@ -142,10 +142,10 @@ Rewrite this as culturally grounded spoken Quechua:
     });
 
     return result.toUIMessageStreamResponse();
-  } catch (err: any) {
+  } catch (err) {
     console.error("Chat API error:", err);
     return NextResponse.json(
-      { error: "Chat failed", message: err.message },
+      { error: "Chat failed. Please try again." },
       { status: 500 }
     );
   }

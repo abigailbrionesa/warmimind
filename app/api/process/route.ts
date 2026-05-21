@@ -43,7 +43,7 @@ Return ONLY valid JSON (no markdown or extra text):
     },
   });
 
-  let jsonText = result.text.trim().replace(/```json/gi, "").replace(/```/g, "").trim();
+  const jsonText = result.text.trim().replace(/```json/gi, "").replace(/```/g, "").trim();
   const parsed = JSON.parse(jsonText);
 
   if (!parsed.summary || !Array.isArray(parsed.questions) || parsed.questions.length !== 5) {
@@ -91,10 +91,10 @@ console.log("Created session:", sessionId, sessions.has(sessionId));
 
     return NextResponse.json({ sessionId, summaryQu, questionsQu });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("PROCESS ERROR:", error);
     return NextResponse.json(
-      { error: "Failed to process PDF", details: error.message, type: error.constructor?.name },
+      { error: "Failed to process PDF. Please try again with a valid document." },
       { status: 500 }
     );
   }

@@ -32,7 +32,11 @@ export default function LearningSection({
     <section className="flex flex-col gap-6">
       <SummaryPanel summary={summaryQu} />
       <QuestionsPanel questions={questionsQu} />
-      <ChatPanel sessionId={sessionId} />
+      <ChatPanel
+        sessionId={sessionId}
+        summaryQu={summaryQu}
+        questionsQu={questionsQu}
+      />
     </section>
   );
 }

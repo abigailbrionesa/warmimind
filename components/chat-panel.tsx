@@ -16,7 +16,6 @@ type ChatPanelProps = {
 
 export default function ChatPanel({ sessionId, summaryQu, questionsQu }: ChatPanelProps) {
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, status, stop } = useChat({
@@ -35,17 +34,13 @@ export default function ChatPanel({ sessionId, summaryQu, questionsQu }: ChatPan
     });
 
     setInput("");
-    setIsTyping(true);
   };
-
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role === "assistant") setIsTyping(false);
-  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const isTyping = status === "submitted" || status === "streaming";
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);

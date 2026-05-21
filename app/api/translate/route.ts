@@ -38,7 +38,7 @@ async function translateText(
     };
   } catch (error) {
     console.error('Google Cloud Translation error:', error);
-    throw new Error(`Translation failed: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error('Translation failed');
   }
 }
 
@@ -73,9 +73,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Translation API error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return NextResponse.json(
-      { error: errorMessage },
+      { error: 'Translation failed. Please try again.' },
       { status: 500 }
     );
   }

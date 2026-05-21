@@ -1,4 +1,8 @@
-export default function QuestionsPanel({ questions }) {
+type QuestionsPanelProps = {
+  questions: string[];
+};
+
+export default function QuestionsPanel({ questions }: QuestionsPanelProps) {
   return (
     <section>
       <h2>❓ Tapuykuna (Questions)</h2>
