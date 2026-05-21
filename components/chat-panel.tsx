@@ -6,6 +6,7 @@ import { BotIcon, Copy, FileText, Flower, List, Send, Target } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { createBackendApiUrl, readBackendJson } from "@/lib/backend-api";
 import type { ProcessedLearningSession } from "@/components/pdf-section";
 
@@ -31,6 +32,20 @@ type ChatResponse = {
   };
 };
 
+type MisconceptionCheck = {
+  check_id: string;
+  question: string;
+  student_answer: string;
+  correct: string[];
+  missing: string[];
+  review_next: string;
+  citations: Citation[];
+};
+
+type MisconceptionResponse = {
+  check: MisconceptionCheck;
+};
+
 type ChatPanelProps = {
   learningSession: ProcessedLearningSession;
 };
@@ -40,6 +55,16 @@ export default function ChatPanel({ learningSession }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState(
+    learningSession.questions[0]?.text ?? ""
+  );
+  const [studentAnswer, setStudentAnswer] = useState("");
+  const [checkLoading, setCheckLoading] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const [misconceptionCheck, setMisconceptionCheck] = useState<MisconceptionCheck | null>(null);
+  const [nextRecommendedAction, setNextRecommendedAction] = useState(
+    learningSession.nextRecommendedAction
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,6 +119,39 @@ export default function ChatPanel({ learningSession }: ChatPanelProps) {
     void navigator.clipboard.writeText(text);
   };
 
+  async function handleMisconceptionCheck() {
+    const question = selectedQuestion.trim();
+    const answer = studentAnswer.trim();
+    if (!question || !answer || checkLoading) return;
+
+    setCheckLoading(true);
+    setCheckError(null);
+
+    try {
+      const response = await readBackendJson<MisconceptionResponse>(
+        await fetch(
+          createBackendApiUrl(
+            `/api/v1/learning-sessions/${learningSession.sessionId}/misconception-checks`
+          ),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question, student_answer: answer }),
+          }
+        )
+      );
+
+      setMisconceptionCheck(response.check);
+      setNextRecommendedAction(response.check.review_next);
+    } catch (err) {
+      setCheckError(
+        err instanceof Error ? err.message : "Misconception check failed. Please try again."
+      );
+    } finally {
+      setCheckLoading(false);
+    }
+  }
+
   return (
     <section className="flex h-full w-full flex-col border bg-card p-4 shadow-sm">
       <Tabs defaultValue="chat" className="flex flex-1 flex-col overflow-hidden">
@@ -106,6 +164,9 @@ export default function ChatPanel({ learningSession }: ChatPanelProps) {
           </TabsTrigger>
           <TabsTrigger value="questions" className="flex items-center gap-2">
             <List className="h-4 w-4" /> Questions
+          </TabsTrigger>
+          <TabsTrigger value="practice" className="flex items-center gap-2">
+            <Flower className="h-4 w-4" /> Practice
           </TabsTrigger>
           <TabsTrigger value="progress" className="flex items-center gap-2">
             <Target className="h-4 w-4" /> Next
@@ -212,7 +273,10 @@ export default function ChatPanel({ learningSession }: ChatPanelProps) {
               <button
                 key={question.text}
                 type="button"
-                onClick={() => copyToClipboard(question.text)}
+                onClick={() => {
+                  setSelectedQuestion(question.text);
+                  copyToClipboard(question.text);
+                }}
                 className="border bg-card-foreground/5 p-3 text-left text-sm transition-colors hover:bg-secondary/10"
               >
                 <span className="mb-2 inline-block text-xs uppercase text-muted-foreground">
@@ -225,12 +289,115 @@ export default function ChatPanel({ learningSession }: ChatPanelProps) {
           </div>
         </TabsContent>
 
+        <TabsContent value="practice" className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold">Misconception check</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pick a guided question, write your answer, and compare it with cited source evidence.
+              </p>
+            </div>
+
+            <div className="grid gap-3">
+              {learningSession.questions.map((question) => {
+                const selected = selectedQuestion === question.text;
+                return (
+                  <button
+                    key={question.text}
+                    type="button"
+                    onClick={() => setSelectedQuestion(question.text)}
+                    className={`border p-3 text-left text-sm transition-colors ${
+                      selected
+                        ? "border-primary bg-primary/10"
+                        : "bg-card-foreground/5 hover:bg-secondary/10"
+                    }`}
+                  >
+                    <span className="mb-2 inline-block text-xs uppercase text-muted-foreground">
+                      {question.difficulty}
+                    </span>
+                    <span className="block">{question.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="misconception-answer" className="text-sm font-medium">
+                Your answer
+              </label>
+              <Textarea
+                id="misconception-answer"
+                value={studentAnswer}
+                onChange={(event) => setStudentAnswer(event.target.value)}
+                placeholder="Explain your answer using the source..."
+                className="min-h-28 text-sm md:text-sm"
+              />
+            </div>
+
+            {checkError && (
+              <div className="border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {checkError}
+              </div>
+            )}
+
+            <Button
+              onClick={() => void handleMisconceptionCheck()}
+              disabled={checkLoading || !selectedQuestion.trim() || !studentAnswer.trim()}
+            >
+              <Target className="h-4 w-4" />
+              {checkLoading ? "Checking..." : "Check answer"}
+            </Button>
+
+            {misconceptionCheck && (
+              <section className="space-y-4 border bg-background p-4 text-sm">
+                <div>
+                  <h4 className="font-semibold">What looks supported</h4>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                    {misconceptionCheck.correct.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold">What to strengthen</h4>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                    {misconceptionCheck.missing.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold">Review next</h4>
+                  <p className="mt-2 text-muted-foreground">
+                    {misconceptionCheck.review_next}
+                  </p>
+                </div>
+
+                {misconceptionCheck.citations.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold">Source evidence</h4>
+                    <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+                      {misconceptionCheck.citations.map((citation) => (
+                        <p key={citation.chunk_id}>
+                          Page {citation.page ?? "?"}: {citation.snippet}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+        </TabsContent>
+
         <TabsContent value="progress" className="min-h-0 flex-1 overflow-y-auto p-4">
           <div className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold">Next recommended action</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                {learningSession.nextRecommendedAction}
+                {nextRecommendedAction}
               </p>
             </div>
             <div>

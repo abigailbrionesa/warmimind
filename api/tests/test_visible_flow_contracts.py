@@ -32,6 +32,14 @@ class VisibleFlowContractTest(unittest.TestCase):
         self.assertIn("WarmiMIND will say so instead of guessing", chat_panel)
         self.assertNotIn('api: "/api/chat"', chat_panel)
 
+    def test_visible_practice_uses_misconception_check_endpoint(self) -> None:
+        chat_panel = self.read("components/chat-panel.tsx")
+
+        self.assertIn("/api/v1/learning-sessions/${learningSession.sessionId}/misconception-checks", chat_panel)
+        self.assertIn("Misconception check", chat_panel)
+        self.assertIn("What looks supported", chat_panel)
+        self.assertIn("What to strengthen", chat_panel)
+
     def test_legacy_chat_has_no_evidence_refusal_guard(self) -> None:
         legacy_chat = self.read("app/api/chat/route.ts")
 
