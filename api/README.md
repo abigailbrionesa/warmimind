@@ -32,3 +32,7 @@ uvicorn app.main:app --reload
 - `POST /api/v1/evals/runs`
 - `GET /api/v1/evals/runs`
 - `GET /api/v1/evals/runs/{run_id}`
+
+## Upload Limits
+
+`POST /api/v1/documents` accepts PDF uploads up to 12 MB. The endpoint validates PDF metadata before reading content and stops reading once the configured limit is exceeded.

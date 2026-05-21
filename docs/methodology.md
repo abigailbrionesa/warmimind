@@ -12,6 +12,8 @@ WarmiMIND v2 uses a source-grounded learning workflow:
 
 The current implementation uses deterministic local service logic so the architecture, API contracts, and validation tests can land before provider-specific AI integrations are added.
 
+The deterministic retrieval layer applies a minimum confidence threshold. If no source chunk clears that threshold, tutor chat must refuse or ask for clarification instead of presenting a cited answer.
+
 ## Evaluation Method
 
 The first eval runner reports:

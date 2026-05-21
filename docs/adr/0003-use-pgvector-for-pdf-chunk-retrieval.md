@@ -10,7 +10,7 @@ Tutor answers, summaries, questions, and misconception checks need source eviden
 
 ## Decision
 
-Use pgvector embeddings on document chunks for semantic retrieval.
+Use pgvector embeddings on document chunks for semantic retrieval. The deterministic MVP test double uses 16-dimensional vectors so local tests stay fast; production provider embeddings must update the SQL vector dimension to match the selected provider.
 
 ## Consequences
 

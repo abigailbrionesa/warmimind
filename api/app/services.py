@@ -20,6 +20,43 @@ from app.models import (
 MAX_FILE_BYTES = 12 * 1024 * 1024
 CHUNK_CHARS = 900
 EMBEDDING_DIMENSIONS = 16
+MIN_RETRIEVAL_SCORE = 0.18
+STOPWORDS = {
+    "about",
+    "after",
+    "and",
+    "are",
+    "author",
+    "before",
+    "being",
+    "childhood",
+    "could",
+    "does",
+    "for",
+    "from",
+    "has",
+    "have",
+    "how",
+    "into",
+    "like",
+    "pdf",
+    "source",
+    "say",
+    "says",
+    "that",
+    "the",
+    "their",
+    "there",
+    "these",
+    "those",
+    "uploaded",
+    "was",
+    "what",
+    "when",
+    "where",
+    "which",
+    "with",
+}
 
 
 class UserFacingError(ValueError):
@@ -50,6 +87,14 @@ def validate_pdf_upload(file_name: str, content_type: str, content: bytes) -> No
 
     if not content:
         raise UserFacingError("Uploaded PDF is empty.")
+
+
+def validate_pdf_upload_metadata(file_name: str, content_type: str) -> None:
+    is_pdf_name = file_name.lower().endswith(".pdf")
+    is_pdf_type = content_type in {"application/pdf", "application/octet-stream"}
+
+    if not is_pdf_name or not is_pdf_type:
+        raise UserFacingError("Only PDF files are supported.")
 
 
 def extract_text_from_pdf_bytes(content: bytes) -> str:
@@ -164,16 +209,18 @@ def get_session(session_id: str) -> LearningSession:
 def retrieve_chunks(session_id: str, query: str, limit: int = 4) -> list[RetrievalResult]:
     session = get_session(session_id)
     query_vector = embed_text(query)
+    query_terms = _meaningful_terms(query)
     chunks = store.chunks.get(session.document_id, [])
-    ranked = sorted(
-        chunks,
-        key=lambda chunk: _cosine_similarity(query_vector, chunk.embedding),
-        reverse=True,
-    )
+    scored_chunks = [
+        (_retrieval_score(query_vector, query_terms, chunk), chunk)
+        for chunk in chunks
+    ]
+    ranked = sorted(scored_chunks, key=lambda item: item[0], reverse=True)
 
     results = []
-    for chunk in ranked[:limit]:
-        score = _cosine_similarity(query_vector, chunk.embedding)
+    for score, chunk in ranked[:limit]:
+        if score < MIN_RETRIEVAL_SCORE:
+            continue
         results.append(
             RetrievalResult(
                 chunk_id=chunk.chunk_id,
@@ -185,6 +232,28 @@ def retrieve_chunks(session_id: str, query: str, limit: int = 4) -> list[Retriev
     return results
 
 
+def _meaningful_terms(text: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-zA-Z][a-zA-Z0-9\-]{2,}", text.lower())
+        if token not in STOPWORDS
+    }
+
+
+def _retrieval_score(query_vector: list[float], query_terms: set[str], chunk: DocumentChunk) -> float:
+    chunk_terms = _meaningful_terms(chunk.content)
+    if not query_terms or not chunk_terms:
+        return 0.0
+
+    overlap = query_terms & chunk_terms
+    if not overlap:
+        return 0.0
+
+    lexical_score = len(overlap) / len(query_terms)
+    semantic_score = _cosine_similarity(query_vector, chunk.embedding)
+    return (semantic_score * 0.4) + (lexical_score * 0.6)
+
+
 def _cosine_similarity(left: list[float], right: list[float]) -> float:
     return sum(a * b for a, b in zip(left, right))
 
@@ -193,7 +262,7 @@ def citations_from_results(results: list[RetrievalResult]) -> list[Citation]:
     return [
         Citation(chunk_id=result.chunk_id, page=result.page, snippet=result.snippet)
         for result in results
-        if result.score > 0
+        if result.score >= MIN_RETRIEVAL_SCORE
     ]
 
 
@@ -264,7 +333,7 @@ def generate_questions(session_id: str) -> list[GuidedQuestion]:
                 question_id=str(uuid4()),
                 session_id=session_id,
                 text=f"What does the source say about {concept.name}, and what evidence supports it?",
-                difficulty=difficulty,  # type: ignore[arg-type]
+                difficulty=difficulty,
                 related_concept=concept.name,
                 evidence=concept.citations,
             )
