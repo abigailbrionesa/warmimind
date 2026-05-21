@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "python -m unittest discover api/tests"
+    "test": "py -m unittest discover api/tests"
   },
   "pnpm": {
     "overrides": {

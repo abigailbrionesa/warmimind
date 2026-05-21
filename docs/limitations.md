@@ -3,7 +3,7 @@
 WarmiMIND v2 is under active rebuild.
 
 - The current FastAPI backend is a deterministic skeleton, not a production AI tutoring system.
-- PDF text extraction is a placeholder in the backend skeleton and should be replaced with a robust parser.
+- PDF text extraction supports text-based PDFs through `pypdf`; scanned/image-only PDFs require a future OCR pass.
 - Supabase migrations are present, but the backend store is currently in memory for local validation.
 - Supabase RLS is enabled in the access-control posture migration, but authenticated ownership policies are not complete.
 - Quechua support is experimental and requires human language review before any quality claims.

@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass, field
 from uuid import uuid4
 
+from app.document_processing import PdfTextExtractionError, extract_text_from_pdf_bytes
 from app.models import (
     ChatMessage,
     Citation,
@@ -97,16 +98,6 @@ def validate_pdf_upload_metadata(file_name: str, content_type: str) -> None:
         raise UserFacingError("Only PDF files are supported.")
 
 
-def extract_text_from_pdf_bytes(content: bytes) -> str:
-    decoded = content.decode("utf-8", errors="ignore")
-    cleaned = re.sub(r"\s+", " ", decoded).strip()
-
-    if not cleaned:
-        return "PDF text extraction placeholder. The uploaded document did not expose plain text in this prototype backend."
-
-    return cleaned
-
-
 def detect_language(text: str) -> str:
     lower = text.lower()
     spanish_markers = {" el ", " la ", " de ", " que ", " para ", " una "}
@@ -167,7 +158,10 @@ def embed_text(text: str) -> list[float]:
 
 def create_document(file_name: str, content_type: str, content: bytes) -> tuple[DocumentMetadata, list[DocumentChunk]]:
     validate_pdf_upload(file_name, content_type, content)
-    text = extract_text_from_pdf_bytes(content)
+    try:
+        text = extract_text_from_pdf_bytes(content)
+    except PdfTextExtractionError as exc:
+        raise UserFacingError(str(exc)) from exc
     document_id = str(uuid4())
     document = DocumentMetadata(
         document_id=document_id,

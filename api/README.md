@@ -8,7 +8,7 @@ FastAPI service skeleton for WarmiMIND v2 document processing, retrieval, tutori
 cd api
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
@@ -38,3 +38,7 @@ The local Next.js app calls this API through `NEXT_PUBLIC_API_BASE_URL`, which d
 ## Upload Limits
 
 `POST /api/v1/documents` accepts PDF uploads up to 12 MB. The endpoint validates PDF metadata before reading content and stops reading once the configured limit is exceeded.
+
+## PDF Text Extraction
+
+The API extracts text server-side with `pypdf`. Text-based PDFs are supported. Scanned/image-only PDFs or PDFs with fewer than 200 meaningful extracted characters return a stable 400 response asking for a text-based or OCR version.
