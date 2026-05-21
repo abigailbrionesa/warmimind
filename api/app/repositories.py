@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Protocol
 from uuid import uuid4
 
@@ -20,6 +21,7 @@ class LearningRepository(Protocol):
         document: DocumentMetadata,
         extracted_text: str,
         chunks: list[DocumentChunk],
+        raw_pdf_bytes: bytes | None = None,
     ) -> None:
         ...
 
@@ -47,6 +49,9 @@ class LearningRepository(Protocol):
     def get_eval_run(self, run_id: str) -> dict[str, Any] | None:
         ...
 
+    def create_document_signed_url(self, document_id: str, expires_in_seconds: int) -> str | None:
+        ...
+
     def reset(self) -> None:
         ...
 
@@ -64,6 +69,7 @@ class InMemoryLearningRepository:
         document: DocumentMetadata,
         extracted_text: str,
         chunks: list[DocumentChunk],
+        raw_pdf_bytes: bytes | None = None,
     ) -> None:
         self.documents[document.document_id] = document
         self.document_text[document.document_id] = extracted_text
@@ -93,6 +99,9 @@ class InMemoryLearningRepository:
     def get_eval_run(self, run_id: str) -> dict[str, Any] | None:
         return self.eval_runs.get(run_id)
 
+    def create_document_signed_url(self, document_id: str, expires_in_seconds: int) -> str | None:
+        return None
+
     def reset(self) -> None:
         self.documents.clear()
         self.document_text.clear()
@@ -102,20 +111,35 @@ class InMemoryLearningRepository:
 
 
 class SupabaseLearningRepository:
-    def __init__(self, supabase_url: str, supabase_service_role_key: str) -> None:
+    def __init__(self, supabase_url: str, supabase_service_role_key: str, pdf_bucket: str) -> None:
         try:
             from supabase import create_client
         except ImportError as exc:  # pragma: no cover - depends on optional runtime install.
             raise RuntimeError("Install api requirements to use the Supabase repository.") from exc
 
         self.client = create_client(supabase_url, supabase_service_role_key)
+        self.pdf_bucket = pdf_bucket
 
     def save_document(
         self,
         document: DocumentMetadata,
         extracted_text: str,
         chunks: list[DocumentChunk],
+        raw_pdf_bytes: bytes | None = None,
     ) -> None:
+        storage_path = document.storage_path
+        if raw_pdf_bytes:
+            storage_path = storage_path or _storage_path_for_document(document)
+            self.client.storage.from_(self.pdf_bucket).upload(
+                storage_path,
+                raw_pdf_bytes,
+                file_options={
+                    "content-type": document.content_type,
+                    "upsert": "true",
+                },
+            )
+            document = document.model_copy(update={"storage_path": storage_path})
+
         self.client.table("documents").upsert(
             {
                 "id": document.document_id,
@@ -126,6 +150,7 @@ class SupabaseLearningRepository:
                 "detected_language": document.detected_language,
                 "status": document.status,
                 "extracted_text": extracted_text,
+                "storage_path": document.storage_path,
             }
         ).execute()
         self.client.table("document_chunks").delete().eq("document_id", document.document_id).execute()
@@ -255,6 +280,18 @@ class SupabaseLearningRepository:
             return None
         return self._eval_run_from_row(rows[0])
 
+    def create_document_signed_url(self, document_id: str, expires_in_seconds: int) -> str | None:
+        document = self.get_document(document_id)
+        if not document or not document.storage_path:
+            return None
+        response = self.client.storage.from_(self.pdf_bucket).create_signed_url(
+            document.storage_path,
+            expires_in_seconds,
+        )
+        if isinstance(response, dict):
+            return response.get("signedURL") or response.get("signedUrl") or response.get("signed_url")
+        return getattr(response, "signed_url", None) or getattr(response, "signedURL", None)
+
     def reset(self) -> None:
         raise RuntimeError("Refusing to reset Supabase data through the runtime repository.")
 
@@ -282,7 +319,11 @@ def build_repository(settings: Any) -> LearningRepository:
         and settings.supabase_url
         and settings.supabase_service_role_key
     ):
-        return SupabaseLearningRepository(settings.supabase_url, settings.supabase_service_role_key)
+        return SupabaseLearningRepository(
+            settings.supabase_url,
+            settings.supabase_service_role_key,
+            settings.supabase_pdf_bucket,
+        )
     return InMemoryLearningRepository()
 
 
@@ -303,7 +344,13 @@ def _document_from_row(row: dict[str, Any]) -> DocumentMetadata:
         size_bytes=row["size_bytes"],
         detected_language=row.get("detected_language", "unknown"),
         status=row.get("status", "processed"),
+        storage_path=row.get("storage_path"),
     )
+
+
+def _storage_path_for_document(document: DocumentMetadata) -> str:
+    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "-", document.file_name).strip("-") or "uploaded.pdf"
+    return f"documents/{document.document_id}/{safe_name}"
 
 
 def _chunk_from_row(row: dict[str, Any]) -> DocumentChunk:

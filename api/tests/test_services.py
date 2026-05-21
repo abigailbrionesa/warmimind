@@ -70,6 +70,9 @@ class LearningServicesTest(unittest.TestCase):
         extracted = services.store.get_document_text(document.document_id)
         self.assertIn("Force changes motion", extracted)
         self.assertGreaterEqual(len(chunks), 1)
+        signed_url = services.get_document_signed_url(document.document_id)
+        self.assertFalse(signed_url["available"])
+        self.assertIsNone(signed_url["signed_url"])
 
     def test_unextractable_pdf_is_rejected(self) -> None:
         with patch("app.document_processing.PdfReader", side_effect=document_processing.PdfReadError("broken")):

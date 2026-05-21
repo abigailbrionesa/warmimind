@@ -87,11 +87,15 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 REPOSITORY_BACKEND=memory
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_PDF_BUCKET=warmimind-pdfs
+SIGNED_URL_TTL_SECONDS=300
 ```
 
 Set `REPOSITORY_BACKEND=supabase` with `SUPABASE_URL` and a server-only
 `SUPABASE_SERVICE_ROLE_KEY` to persist v2 app data in Supabase. The default
-`memory` backend is intended for local validation and tests.
+`memory` backend is intended for local validation and tests. In Supabase mode,
+uploaded PDF bytes are written to `SUPABASE_PDF_BUCKET`, and signed URL
+responses use `SIGNED_URL_TTL_SECONDS`.
 
 ### Develop
 
@@ -180,6 +184,7 @@ The FastAPI skeleton lives in `api/` and exposes:
 - `GET /api/v1/health`
 - `POST /api/v1/documents`
 - `GET /api/v1/documents/{document_id}`
+- `GET /api/v1/documents/{document_id}/signed-url`
 - `POST /api/v1/learning-sessions`
 - `GET /api/v1/learning-sessions/{session_id}`
 - `POST /api/v1/learning-sessions/{session_id}/retrieve`
@@ -200,9 +205,12 @@ persists document metadata, extracted text, source chunks, learning sessions,
 learning outputs, misconception checks, and eval runs to the Supabase tables in
 `migrations/`.
 
-Raw uploaded PDF bytes are still intentionally deferred. This means Supabase app
-data can survive API restarts, while file re-download, signed PDF URLs, and rich
-PDF viewer highlighting remain future storage work.
+In Supabase repository mode, raw uploaded PDF bytes are stored in the configured
+Supabase Storage bucket and document metadata keeps the storage path. The API can
+return a short-lived signed URL from
+`GET /api/v1/documents/{document_id}/signed-url`. In local memory mode, raw PDF
+bytes are not retained and the signed URL endpoint returns `available: false`.
+Rich PDF viewer highlighting remains future storage work.
 
 ## Validation
 

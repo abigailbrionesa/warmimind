@@ -24,6 +24,7 @@ class DocumentMetadata(BaseModel):
     size_bytes: int
     detected_language: str = "unknown"
     status: Literal["uploaded", "processed"] = "processed"
+    storage_path: str | None = None
 
 
 class DocumentChunk(BaseModel):

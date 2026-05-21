@@ -8,5 +8,5 @@ WarmiMIND v2 is under active rebuild.
 - Supabase RLS is enabled in the access-control posture migration, but authenticated ownership policies are not complete.
 - Quechua support is experimental and requires human language review before any quality claims.
 - Cultural examples are prompt-guided only and are not community validation.
-- Raw uploaded PDF storage, retention, signed URLs, and access control must be finalized before production use.
+- Raw uploaded PDF storage and short-lived signed URLs are available only in Supabase repository mode; retention and user ownership controls must still be finalized before production use.
 - The first eval runner is seeded and should be expanded with real PDF fixtures.

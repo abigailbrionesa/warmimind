@@ -176,7 +176,7 @@ def create_document(file_name: str, content_type: str, content: bytes) -> tuple[
     )
     chunks = chunk_text(document_id, text)
 
-    store.save_document(document, text, chunks)
+    store.save_document(document, text, chunks, raw_pdf_bytes=content)
 
     return document, chunks
 
@@ -206,6 +206,19 @@ def get_document_with_chunks(document_id: str) -> tuple[DocumentMetadata, list[D
     if not document:
         raise UserFacingError("Document was not found.")
     return document, store.get_chunks(document_id)
+
+
+def get_document_signed_url(document_id: str) -> dict[str, Any]:
+    document = store.get_document(document_id)
+    if not document:
+        raise UserFacingError("Document was not found.")
+    signed_url = store.create_document_signed_url(document_id, settings.signed_url_ttl_seconds)
+    return {
+        "document_id": document_id,
+        "available": bool(signed_url),
+        "signed_url": signed_url,
+        "expires_in_seconds": settings.signed_url_ttl_seconds if signed_url else None,
+    }
 
 
 def retrieve_chunks(session_id: str, query: str, limit: int = 4) -> list[RetrievalResult]:
