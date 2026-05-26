@@ -95,6 +95,8 @@ const requiredReferences = [
     file: "README.md",
     patterns: [
       "How to Review This Repo",
+      "actions/workflows/ci.yml/badge.svg",
+      "GitHub Actions CI workflow runs the same credential-free validation path",
       "docs/project-audit.md",
       ".github/PRDs/project-audit-upgrade-prd.md",
       "pnpm review:smoke",

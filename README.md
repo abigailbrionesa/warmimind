@@ -1,5 +1,7 @@
 # WarmiMIND
 
+[![CI](https://github.com/abigailbrionesa/warmimind/actions/workflows/ci.yml/badge.svg?branch=codex/supabase-pdf-storage)](https://github.com/abigailbrionesa/warmimind/actions/workflows/ci.yml)
+
 Source-grounded AI STEM learning workspace for turning one uploaded PDF into a structured study session.
 
 WarmiMIND's current v2 MVP ingests a text-based STEM PDF, creates page-aware source chunks, and uses deterministic retrieval/generation logic to produce cited summaries, concepts, guided questions, tutor chat, misconception feedback, learning state, next recommended actions, and evaluation metrics.
@@ -34,6 +36,7 @@ pnpm audit --audit-level low
 ```
 
 The review path does not require provider credentials or Supabase access when `REPOSITORY_BACKEND=memory`.
+The GitHub Actions CI workflow runs the same credential-free validation path on pull requests and active project branch pushes.
 
 ## Current Status
 
