@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - "codex/**"
+      - "v2-*"
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    env:
+      REPOSITORY_BACKEND: memory
+      ENABLE_PDF_SIGNED_URLS: "false"
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      GOOGLE_CLOUD_PROJECT_ID: ""
+      GOOGLE_GENERATIVE_AI_API_KEY: ""
+      SUPABASE_URL: ""
+      SUPABASE_SERVICE_ROLE_KEY: ""
+      SUPABASE_PDF_BUCKET: warmimind-pdfs
+      SIGNED_URL_TTL_SECONDS: "300"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install backend dependencies
+        run: python -m pip install -r api/requirements.txt
+
+      - name: Run static review smoke check
+        run: pnpm review:smoke
+
+      - name: Run lint
+        run: pnpm lint
+
+      - name: Run TypeScript check
+        run: pnpm exec tsc --noEmit --pretty false
+
+      - name: Run backend tests
+        run: pnpm test
+
+      - name: Compile-check Python backend
+        run: python -m compileall api
+
+      - name: Build Next.js app
+        run: pnpm build

@@ -78,6 +78,14 @@ async def get_document(document_id: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.get("/documents/{document_id}/signed-url")
+async def get_document_signed_url(document_id: str) -> dict:
+    try:
+        return services.get_document_signed_url(document_id)
+    except services.UserFacingError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @router.post("/learning-sessions", response_model=LearningSession)
 async def create_learning_session(request: CreateSessionRequest) -> LearningSession:
     try:

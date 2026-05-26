@@ -2,12 +2,14 @@
   "name": "warmimind",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "py -m unittest discover api/tests"
+    "test": "node scripts/run-python-tests.mjs",
+    "review:smoke": "node scripts/review-smoke.mjs"
   },
   "pnpm": {
     "overrides": {
@@ -58,5 +60,23 @@
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "description": "WarmiMIND is an experimental Next.js and FastAPI prototype for turning a STEM PDF into a source-grounded study experience. The recommended local demo uploads a PDF through the v2 API, creates a learning session, generates cited learning outputs, and refuses questions when source evidence is weak.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abigailbrionesa/warmimind.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/abigailbrionesa/warmimind/issues"
+  },
+  "homepage": "https://github.com/abigailbrionesa/warmimind#readme"
 }

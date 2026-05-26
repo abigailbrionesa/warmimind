@@ -43,11 +43,12 @@ class InMemoryLearningRepositoryTest(unittest.TestCase):
             )
         ]
 
-        self.repository.save_document(document, "Force changes motion.", chunks)
+        self.repository.save_document(document, "Force changes motion.", chunks, raw_pdf_bytes=b"%PDF")
 
         self.assertEqual(self.repository.get_document(document.document_id), document)
         self.assertEqual(self.repository.get_document_text(document.document_id), "Force changes motion.")
         self.assertEqual(self.repository.get_chunks(document.document_id), chunks)
+        self.assertIsNone(self.repository.create_document_signed_url(document.document_id, 300))
 
     def test_persists_full_learning_session_state(self) -> None:
         citation = Citation(chunk_id="document-1-chunk-1", page=1, snippet="Force changes motion.")
