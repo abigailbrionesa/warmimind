@@ -10,7 +10,8 @@ This guide summarizes the current WarmiMIND system for technical review. It conn
 4. Inspect the visible Next.js routes in `app/` and the learning components in `components/`.
 5. Inspect the FastAPI v2 backend in `api/app/`.
 6. Review Supabase migrations in `migrations/`.
-7. Run backend, frontend, build, and static review validations.
+7. Review `.github/workflows/ci.yml` for the automated quality gates.
+8. Run backend, frontend, build, and static review validations locally when making changes.
 
 ## Implemented Product Surface
 
@@ -54,6 +55,10 @@ The visible demo uses the FastAPI v2 API through `NEXT_PUBLIC_API_BASE_URL`.
 ## Validation Commands
 
 ```bash
+pnpm review:smoke
+```
+
+```bash
 py -m compileall api
 ```
 
@@ -77,6 +82,27 @@ pnpm build
 pnpm audit --audit-level low
 ```
 
+## Automated Quality Gates
+
+GitHub Actions runs the repository-level validation workflow in `.github/workflows/ci.yml`.
+
+The workflow is credential-free and uses memory-mode assumptions:
+
+- `REPOSITORY_BACKEND=memory`
+- `ENABLE_PDF_SIGNED_URLS=false`
+- no Supabase credentials
+- no AI provider credentials
+- no deployed backend dependency
+
+The CI workflow covers:
+
+- static review smoke checks with `pnpm review:smoke`
+- ESLint with `pnpm lint`
+- TypeScript checks with `pnpm exec tsc --noEmit --pretty false`
+- backend tests with `pnpm test`
+- Python compile checks with `python -m compileall api`
+- production build validation with `pnpm build`
+
 ## Existing Evidence
 
 | Evidence type | Location |
@@ -92,12 +118,14 @@ pnpm audit --audit-level low
 | Web boundary note | `web/README.md` |
 | Migration notes | `migrations/README.md` |
 | Seeded eval fixture | `evals/sample_stem_eval.json` |
+| CI workflow | `.github/workflows/ci.yml` |
 
 ## Audit Findings
 
 - The recommended product path is the v2 FastAPI-backed upload and learning flow.
 - The repository has focused backend tests for upload validation, extraction failures, retrieval, refusal, learning outputs, evals, and repository persistence.
 - The repository has visible-flow contract tests that guard the public route and component integration posture.
+- The repository has CI quality gates that mirror the local credential-free validation path on pull requests and active project branch pushes.
 - Supabase persistence and raw PDF storage are optional and should not be described as required for local validation.
 - Signed URL issuance is intentionally default-disabled.
-- The strongest remaining review need is a compact, executable way to verify that review-critical files and references stay present as the project evolves.
+- The static review smoke check verifies that review-critical files and references stay present as the project evolves.
