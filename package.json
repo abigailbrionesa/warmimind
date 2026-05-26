@@ -8,7 +8,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "py -m unittest discover api/tests"
+    "test": "py -m unittest discover api/tests",
+    "review:smoke": "node scripts/review-smoke.mjs"
   },
   "pnpm": {
     "overrides": {
