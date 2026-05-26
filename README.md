@@ -4,6 +4,37 @@ Source-grounded AI STEM learning workspace for turning one uploaded PDF into a s
 
 WarmiMIND's current v2 MVP ingests a text-based STEM PDF, creates page-aware source chunks, and uses deterministic retrieval/generation logic to produce cited summaries, concepts, guided questions, tutor chat, misconception feedback, learning state, next recommended actions, and evaluation metrics.
 
+## How to Review This Repo
+
+Start with the current audit and product contract:
+
+- [Project audit guide](docs/project-audit.md)
+- [Project audit upgrade PRD](.github/PRDs/project-audit-upgrade-prd.md)
+- [Architecture](docs/architecture.md)
+- [Methodology](docs/methodology.md)
+- [Limitations](docs/limitations.md)
+- [Deployment readiness](docs/deployment.md)
+- [Demo script](docs/demo-script.md)
+- [Screenshots](docs/screenshots/README.md)
+- [Evaluation fixture notes](evals/README.md)
+- [FastAPI docs](api/README.md)
+- [Migration notes](migrations/README.md)
+- [ADRs](docs/adr)
+
+Recommended local validation:
+
+```bash
+pnpm review:smoke
+py -m compileall api
+pnpm test
+pnpm lint
+pnpm exec tsc --noEmit --pretty false
+pnpm build
+pnpm audit --audit-level low
+```
+
+The review path does not require provider credentials or Supabase access when `REPOSITORY_BACKEND=memory`.
+
 ## Current Status
 
 - Visible v2 upload and workspace flow is implemented at `/landing`.
@@ -111,6 +142,7 @@ Open `http://localhost:3000`.
 | `pnpm lint` | Run ESLint |
 | `pnpm exec tsc --noEmit` | Run TypeScript checks |
 | `pnpm test` | Run FastAPI unit tests |
+| `pnpm review:smoke` | Verify review-critical docs, files, routes, and contract references |
 | `pnpm audit --audit-level low` | Check dependency advisories |
 | `py -m compileall api` | Compile-check Python backend files |
 
@@ -186,6 +218,7 @@ Recent validation for the v2 MVP includes:
 
 ```bash
 py -m compileall api
+pnpm review:smoke
 pnpm test
 pnpm lint
 pnpm exec tsc --noEmit --pretty false

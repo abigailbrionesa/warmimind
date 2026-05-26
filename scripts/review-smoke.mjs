@@ -94,6 +94,10 @@ const requiredReferences = [
   {
     file: "README.md",
     patterns: [
+      "How to Review This Repo",
+      "docs/project-audit.md",
+      ".github/PRDs/project-audit-upgrade-prd.md",
+      "pnpm review:smoke",
       "FastAPI v2 Endpoints",
       "GET /api/v1/documents/{document_id}/signed-url",
       "pnpm build",
